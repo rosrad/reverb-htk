@@ -1,0 +1,280 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+# This script automatically downloads and installs the following packages:
+# - HTK
+# - HTK Samples
+# - NIST SPHERE
+
+. printlib
+
+print_header "$0"
+
+# Return value of each installation function, e.g. 'function install_htk'.
+INST_HTK_RET_VAL=1
+INST_HTK_SAMPLES_VAL=1
+INST_NIST_RET_VAL=1
+
+# Request user name and password for the htk site.
+# Prints <USERNAME> <PASSWORD> to std out.
+function read_htk_username_password
+{
+    local HTKUser
+    local HTKPassword
+
+    read -p "Please specify your HTK username and press ENTER: " HTKUser
+    read -s -p "Please specify your HTK password and press ENTER: " HTKPassword
+    echo $HTKUser $HTKPassword
+}
+
+# Get and install the HTK-software.
+# $1: User name for the HTK site.
+# $2: Password for the HTK site.
+# Return: 0 if installation was successful, otherwise an integer != 0.
+function install_htk
+{
+    local htk_user=$1
+    local htk_pw=$2
+
+    print_subsec "Download and install HTK software"
+
+    mkdir -p tools/HTK
+    # Get the software.
+    wget \
+	-nc \
+        --directory-prefix ${targetHTKDir}  \
+        --user=$htk_user \
+        --password=$htk_pw \
+        http://htk.eng.cam.ac.uk/ftp/software/HTK-3.4.1.tar.gz
+    local wget_ret=$?
+    if [ $wget_ret -ne 0 ]; then
+        print_msg "wget error occured getting HTK software; " \
+            "skipping HTK installation."
+        return $wget_ret
+    else
+	# just in case some errors are not properly handled by looking at wget's return value
+	# check for existence of downloaded file
+	if [ ! -f ${targetHTKDir}/HTK-3.4.1.tar.gz ]; then
+	  print_msg "Unknwon error occured getting HTK software; " \
+            "skipping HTK installation."
+	  return -1
+	else
+	  print_msg "Got HTK software; unpacking and installing."
+	  # UNPACK and INSTALL
+	  pushd . > /dev/null
+	  cd ${targetHTKDir}
+	  # unpack
+	  tar xzvf HTK-3.4.1.tar.gz
+	  # move to build dir
+	  cd htk
+	  # fix the makefile tab space issue
+	  sed -i -e 's/^ \+ /\t/g' HLMTools/Makefile.in
+	  buildDir=`pwd`
+	  cat << EOF > buildHTK.sh
+#!/bin/bash
+
+./configure --prefix=${buildDir}
+make all
+make install
+EOF
+      # ensure compatibility for 64 bit systems
+	  linux32 bash buildHTK.sh
+	  rm -f buildHTK.sh
+	  popd > /dev/null
+	  return 0
+	fi
+    fi
+}
+
+# Download and install HTK samples.
+# $1: User name for HTK site.
+# $2: Password for HTK site.
+# Return: 0 if installation was successful, otherwise an integer != 0.
+function install_htk_samples
+{
+    local htk_user=$1
+    local htk_pw=$2
+
+    print_subsec "Download and install HTK samples"
+
+    mkdir -p ${targetHTKDir}
+    wget \
+	-nc \
+        --directory-prefix ${targetHTKDir}  \
+        --user=$htk_user \
+        --password=$htk_pw \
+        http://htk.eng.cam.ac.uk/ftp/software/HTK-samples-3.4.1.tar.gz
+    local wget_ret=$?
+    if [ $wget_ret -ne 0 ]; then
+        print_msg "wget error occured getting HTK samples; skipping installation of HTK samples."
+        return $wget_ret
+    else
+	# just in case some errors are not properly handled by looking at wget's return value
+	# check for existence of downloaded file
+	if [ ! -f ${targetHTKDir}/HTK-samples-3.4.1.tar.gz ]; then
+	  print_msg "Unknown error occured getting HTK samples; skipping installation of HTK samples."
+	  return -1
+	else
+	  pushd . > /dev/null
+	  cd ${targetHTKDir}
+	  # unpack
+	  tar xzvf HTK-samples-3.4.1.tar.gz
+	  popd > /dev/null
+	  return 0
+      fi
+  fi
+}
+
+# Get NIST software and the patch.
+# Return: 0 if installation was successful, otherwise an integer != 0.
+function install_nist
+{
+
+    # The software.
+    print_subsec "Download and install NIST SPHERE software"
+    mkdir -p ${targetSPHEREDir}
+    wget \
+        -nc \
+	--directory-prefix ${targetSPHEREDir} \
+        ftp://jaguar.ncsl.nist.gov/pub/sphere_2.6a.tgz
+    local wget_sphere_ret=$?
+    if [ $wget_sphere_ret -ne 0 ]; then
+        print_msg "wget error occured getting NIST SPHERE; skipping installation"
+        return $wget_sphere_ret
+    else 
+	# and the patch to work with most linux systems; thanks to Paul M. Aoki
+        wget \
+	    -nc \
+            --directory-prefix ${targetSPHEREDir} \
+            http://www.paulaoki.com/software/sphere.patch.amd64
+        local wget_patch_ret=$?
+        if [ $wget_patch_ret -ne 0 ]; then
+            print_msg "wget error occured getting NIST sphere patch; skipping"
+            return $wget_patch_ret
+        else
+            # just in case some errors are not properly handled by looking at wget's return value
+	    # check for existence of downloaded file
+	    if [ ! -f ${targetSPHEREDir}/sphere.patch.amd64 ]; then
+	      print_msg "Unknown error occured getting NIST sphere patch; skipping installation"
+	      return -1
+	    else
+	      echo "got NIST sphere; unpacking, patching and installing"
+	      cp tools/sphere.patch.mkstemp ${targetSPHEREDir}/sphere.patch.mkstemp
+	      #UNPACK, PATCH and INSTALL
+	      pushd . > /dev/null
+	      cd ${targetSPHEREDir}
+	      tar xzvf sphere_2.6a.tgz
+	      # patch 
+	      patch -Np1 -d nist < sphere.patch.amd64
+	      # and the provided patch to make sure the tmp files created are unique 
+	      patch -Np1 -d nist < sphere.patch.mkstemp
+	      cd nist
+	      echo "10" | src/scripts/install.sh
+	      local nist_inst_script_ret=$?
+	      popd > /dev/null
+	      return $nist_inst_script_ret
+	    fi
+	fi
+    fi
+}
+
+# Download and install all software packages.
+# $1: User name for HTK site.
+# $2: Password for HTK site.
+function install_all
+{
+    local htk_username=$1
+    local htk_password=$2
+
+    install_htk $htk_username $htk_password
+    INST_HTK_RET_VAL=$?
+
+    install_htk_samples $htk_username $htk_password
+    INST_HTK_SAMPLES_RET_VAL=$?
+
+    install_nist
+    INST_NIST_RET_VAL=$?
+}
+
+# Print summary of installation and report any errors.
+function print_summary
+{
+    local readonly success=": SUCCESS"
+    local readonly failure=": FAILURE"
+
+    print_subsec "Summary of installation"
+
+    if [ $INST_HTK_RET_VAL -ne 0 ]; then
+        print_subsub "HTK${failure}"
+        print_msg "If you install HTK manually, make sure that the HTK programs \n" \
+            "are in your PATH variable."
+    else
+        print_subsub "HTK${success}"
+    fi
+
+    if [ $INST_HTK_SAMPLES_RET_VAL -ne 0 ]; then
+        print_subsub "HTK Samples${failure}"
+        print_msg "If you install the HTK samples manually, make sure that \n" \
+            "the paths\n" \
+            " 'HTK/samples/HTKDemo' \n" \
+            " 'HTK/samples/HTKTutorial' \n" \
+            "are in your PATH variable."
+    else
+        print_subsub "HTK Samples${success}"
+    fi
+
+    if [ $INST_NIST_RET_VAL -ne 0 ]; then
+        print_subsub "NIST Tools${failure}"
+        print_msg "If you install the NIST tools manually, make sure that \n" \
+            "'w_decode' is in your PATH variable."
+    else
+        print_subsub "NIST Tools${success}"
+    fi
+}
+
+function main
+{
+    local htk_username
+    local htk_password
+
+    targetHTKDir=tools/HTK
+    targetSPHEREDir=tools/SPHERE
+
+
+    rm -f autoinstTools.log
+
+    print_subsub "Username and Password required for downloading the HTK software!\n" \
+        "If you haven't registered yet, go to\n" \
+        "http://htk.eng.cam.ac.uk/register.shtml\n" \
+        "and press CTRL-C; otherwise continue.\n" \
+	"\n" \
+	"A log file of this installation process will be written to autoinstTools.log."
+
+    # the user name and the password are used twice; to not ask for it two times
+    # store the user's input and pass it to the required functions
+    read htk_username htk_password <<< $(read_htk_username_password) 
+
+    install_all $htk_username $htk_password \
+        > >(tee --append autoinstTools.log) \
+        2> >(tee --append autoinstTools.log >&2)
+
+    print_summary
+
+    print_subsub "Log file for all installations written to autoinstTools.log."
+
+    exit 0
+}
+
+main

@@ -1,0 +1,160 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+
+# check for existing file and exit if file is missing; 
+# preventing screen from being flooded by error messages
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+print_header "$0"
+print_subsec 'Configuration'
+#Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsec "REVERB WSJCAM0"
+
+pushd . > /dev/null
+
+## REVERB_WSJCAM0 Recognition
+
+# Directory where the feature lists are located
+flistDir=${WSJLIB}/flists/reverbWSJcam0
+
+# List of recognition tasks
+#tasks="cln near far"
+tasks="cln"
+
+# List of test sets
+testSets=$TASKSET #"dt et"
+
+
+# check for existing results dir
+if [[ -d ${REVERBWSJRESULTS} ]]; then
+   print_msg "The results directory\n" \
+	     "${REVERBWSJRESULTS}\n" \
+	     "already exists!\n " \
+	     "If you decide to proceed, its content will possibly be overwritten!"
+   read -p "Continue? (Y/N)? " REPLY
+   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
+     print_msg "Continuing!"
+   else
+     print_msg "Exiting!"
+     exit 1
+   fi
+else
+  mkdir -p ${REVERBWSJRESULTS}
+fi
+
+
+evalOnly=false
+
+# Parameters for recognition
+beamPruningThreshold=250.0 
+insertionPenalty=0.0
+languageModelWeight=16.0
+numberOfGaussians=10
+wordEndPruningThreshold=200.0
+
+
+# the language model file
+LM=${WSJLIB}/nets/5cnvp.net
+# the monophone dictionary
+VOCAB=${WSJLIB}/dicts/5cnvpmono.dict
+# the word internal triphone list (after decision tree based clustering)
+HMMLIST=$WSJCAM0HMMS/W2/winttree.list
+# the master macro file
+MMF=$WSJCAM0HMMS/W2/hmm${numberOfGaussians}4/MMF
+
+
+for task in $tasks;
+do
+  echo $task
+  for testSet in $testSets;
+  do
+    for ((setId=1;setId<=1;setId++))
+      do
+      # assign list of files
+      if [ "$task" = "cln" ]; then
+	  taskName=SimData_${testSet}_for_${task}_room${setId}
+      else
+	  taskName=SimData_${testSet}_for_1ch_${task}_room${setId}_A
+      fi
+      SCP=$flistDir/${taskName}.lst
+
+      # assign the MLF to keep the recognizer output
+      resMLF=${REVERBWSJRESULTS}/${taskName}.mlf
+
+      print_subsub "Recognize using audio/feature file list:\n $SCP"
+
+      if [ "$evalOnly" = "false" ]; then
+	 parallelHTK $NBPROC HVite \
+	    -A -D -T 1 \
+	    -t ${beamPruningThreshold} \
+	    -v ${wordEndPruningThreshold} \
+	    -s ${languageModelWeight} \
+	    -p ${insertionPenalty} \
+	    -i ${resMLF} \
+	    -w ${LM} \
+	    -S ${SCP} \
+	    -H ${MMF} \
+	    ${VOCAB} \
+	    ${HMMLIST}
+      fi
+
+      # check 
+      stop_on_missing_file ${resMLF}
+
+
+      resLog=${REVERBWSJRESULTS}/${taskName}.log
+      refMLF=$WSJLIB/wlabs/si_${testSet}.mlf
+     
+      print_subsub "Evaluate using reference MLF:\n $refMLF"
+
+      # evaluate the MLF output by the recognizer by comparing it against the reference MLF
+      HResults \
+	  -A -D -T 1 \
+	  -h \
+	  -n \
+	  -k *%%%c02??.??? \
+	  -z \!NULL \
+	  -e \!NULL \!SENT_START \
+	  -e \!NULL \!SENT_END \
+	  -I ${refMLF} \
+	  ${VOCAB} \
+	  ${resMLF} \
+	  > ${resLog}
+
+      #check 
+      stop_on_missing_file ${resLog}     
+    done
+  done
+done
+
+popd > /dev/null
+
+

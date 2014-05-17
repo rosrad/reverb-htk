@@ -1,0 +1,123 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec 'Configuration'
+#Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+function clean_up
+{
+    print_subsec "Removing old files."
+    cd $WSJLIB/dicts
+
+    rm -f makedict.ded
+    rm -f mono_no_sp_no_sil.dict
+    rm -f hdman.ed
+    rm -f hdman2.ed
+    rm -f si_tr_mono_no_sp_no_sil.dict
+    rm -f 5cnvpmono_no_sp_no_sil.dict
+    rm -f 5cnvptriphone.dict
+    rm -f 5cnvpmono.dict
+}
+
+clean_up
+
+print_subsec "Prepare Triphone Dictionary"
+pushd . > /dev/null
+cd $WSJLIB/dicts
+
+# make all phones lower case and remove multiple sils and sps
+cat << "EOF" > makedict.ded
+LP
+RS cmu
+EOF
+
+print_msg "HDMAN - merging dicts!"
+HDMan \
+    -A -D -T 1 -m \
+    -g makedict.ded \
+    mono_no_sp_no_sil.dict \
+    sorted.dict \
+    special.dict
+
+cat << "EOF" >  hdman.ed
+TC
+AS sp sil
+MP sil sil sp
+MP sp sp sp
+MP sp sp sil
+MP sil sil sil
+DP sp
+EOF
+
+cat << "EOF" >  hdman2.ed
+AS sp sil
+MP sil sil sp
+MP sp sp sp
+MP sp sp sil
+MP sil sil sil
+DP sp
+EOF
+
+print_msg "Getting pronunciation for the training set"
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -w $WSJLIB/wlists/si_tr.wlist \
+    -l si_tr_mono_no_sp_no_sil.dict.log \
+    si_tr_mono_no_sp_no_sil.dict \
+    mono_no_sp_no_sil.dict
+
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -g hdman.ed \
+    si_tr_triphone.dict \
+    si_tr_mono_no_sp_no_sil.dict
+
+print_msg "Getting pronunciation for 5cnvp set"
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -w $WSJLIB/wlists/5cnvp.wlist \
+    -l 5cnvpmono_no_sp_no_sil.dict.log \
+    5cnvpmono_no_sp_no_sil.dict \
+    mono_no_sp_no_sil.dict
+
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -g hdman.ed \
+    -l 5cnvptriphone.dict.log \
+    5cnvptriphone.dict \
+    5cnvpmono_no_sp_no_sil.dict
+
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -g hdman2.ed \
+    5cnvpmono.dict \
+    5cnvpmono_no_sp_no_sil.dict
+
+popd > /dev/null

@@ -1,0 +1,108 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+#Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+
+for trainingStyle in clean multi_cond 
+do
+
+  if [ "$trainingStyle" = "clean" ]; then
+    print_header "Summarizing results for clean-condition HMM usage!"
+    resultsDirREVERBWSJcam0=${REVERBWSJRESULTS}
+    resultsDirMCWSJAV=${MCWSJAVRESULTS}
+  elif [ "$trainingStyle" = "multi_cond" ]; then
+    print_header "Summarizing results for multi-condition HMM usage!"
+    resultsDirREVERBWSJcam0=${REVERBWSJRESULTS_MC}
+    resultsDirMCWSJAV=${MCWSJAVRESULTS_MC}
+  else
+    print_header "Unknown training style: $trainingStyle, choose either 'clean' or 'mulit_cond'"
+    exit -1
+  fi
+  # the results for cmllr are in the following directories
+  resultsDirREVERBWSJcam0_cmllr=${resultsDirREVERBWSJcam0}_cmllr
+  resultsDirMCWSJAV_cmllr=${resultsDirMCWSJAV}_cmllr
+
+
+#  ##########################
+#  Results for REVERB WSJCAM0  (SimData)
+#  ##########################
+
+  setList=$TASKSET
+  dataSet=SimData
+
+  for theset in ${setList[@]}
+  do
+    # List of subsets
+    subsets=("1")
+    tasks=("cln")
+    
+    set_name=${dataSet}_$theset
+    if [ -d ${resultsDirREVERBWSJcam0} ]; then
+      print_msg "# $set_name (w/o CMLLR)"
+      bash print_results  ${resultsDirREVERBWSJcam0} $set_name ${#tasks[@]} ${#subsets[@]} ${tasks[@]}  ${subsets[@]}
+    fi
+    if [ -d ${resultsDirREVERBWSJcam0_cmllr} ]; then
+      print_msg "# $set_name (w/ CMLLR)"
+      bash print_results ${resultsDirREVERBWSJcam0}_cmllr $set_name ${#tasks[@]} ${#subsets[@]}  ${tasks[@]} ${subsets[@]}
+    fi
+    # Results for near and far
+    #subsets=("1_A" "2_A" "3_A")
+    #tasks=("1ch_near"
+#	  "1ch_far")
+#    if [ -d ${resultsDirREVERBWSJcam0} ]; then
+#      print_msg "# $set_name (w/o CMLLR)"
+#      bash print_results ${resultsDirREVERBWSJcam0} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+#    fi
+#    if [ -d ${resultsDirREVERBWSJcam0_cmllr} ]; then
+#      print_msg "# $set_name (w/ CMLLR)"
+#      bash print_results ${resultsDirREVERBWSJcam0_cmllr} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+#    fi
+  done
+
+#  #################
+#  Results for MCWSJ (RealData)
+#  ################# 
+
+#  dataSet=RealData
+#  subsets=("1_A")
+#  tasks=("1ch_near"
+#	  "1ch_far")
+#  for theset in ${setList[@]}
+#  do
+#    set_name=${dataSet}_$theset
+#    if [ -d ${resultsDirMCWSJAV} ]; then
+#	print_msg "# $set_name (w/o CMLLR)"
+#	bash print_results ${resultsDirMCWSJAV} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+#    fi
+#    if [ -d ${resultsDirMCWSJAV_cmllr} ]; then
+#	print_msg "# $set_name (w/ CMLLR)"
+#	bash print_results ${resultsDirMCWSJAV_cmllr} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+#    fi
+#  done
+done
+exit
+
+
+

@@ -1,0 +1,162 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+# This script automatically downloads and installs the following packages:
+# - BEEP Dictionary
+# - CMU Dictionary
+
+. printlib
+
+print_header "$0"
+
+# Return value of each installation function, e.g. 'function install_htk'.
+INST_BEEP_RET_VAL=1
+INST_CMU_RET_VAL=1
+
+# Get the BEEP dictionary.
+# Return: 0 if installation was successful, otherwise an integer != 0.
+function install_beep
+{
+    print_subsec "Download BEEP dictionary"
+    # there may be many sources: list known ones to ensure proper download
+    urls=( \
+	    ftp://svr-ftp.eng.cam.ac.uk/pub/comp.speech/dictionaries/beep-1.0.tar.gz \
+	 )
+    local wget_ret=1
+    for url in ${urls[@]}; do
+      print_msg "Trying to obtain BEEP dictionary from: \n${url}"
+      wget -nc \
+	   --directory-prefix ${targetDir} \
+	   ${url}
+      wget_ret=$?
+	  if [ ${wget_ret} -ne 0 ]; then
+        print_msg "wget error occured; trying next url!"
+		continue
+      else 
+		# some errors are not properly handled by looking at wget's return value
+		# e.g., malformed urls; check for existence of downloaded file
+		if [ ! -f ${targetDir}/beep-1.0.tar.gz ]; then
+	  		print_msg "Unknown error occured; trying next url!"
+  	  		# set wget_ret value to some other than the once returned by wget
+	  		wget_ret=-1
+	  		continue
+		else
+	  		print_msg "got BEEP; unpacking!"
+	  		pushd . > /dev/null
+	  		cd lib_basic/dicts
+			tar xzvf beep-1.0.tar.gz 
+	  		popd > /dev/null
+	  		break
+		fi
+	  fi
+    done
+    # return the return value of the last wget call
+    return $wget_ret
+}
+
+# Get the cmu dictionary.
+# Return: 0 if installation was successful, otherwise an integer != 0.
+function install_cmu_dict
+{
+    print_subsec "Download CMU dictionary"
+    # there are many sources: list some to ensure proper download
+    urls=( \
+ 	    http://svn.code.sf.net/p/cmusphinx/code/trunk/cmudict/cmudict.0.7a \
+ 	    www.dev.voxforge.org/projects/Main/export/3287/Tags/Releases/Sphinx/voxforge-en-r0_1_3/etc/cmudict.0.7a \
+	 )
+    local wget_ret=1
+    for url in ${urls[@]}; do
+      print_msg "Trying to obtain CMU dictionary from: \n${url}"
+      wget -nc \
+	   --directory-prefix ${targetDir} \
+	   ${url}
+      wget_ret=$?
+      if [ ${wget_ret} -ne 0 ]; then
+	print_msg "wget error occured; trying next url!"
+	continue
+      else 
+	# just in case some errors are not properly handled by looking at wget's return value
+	# check for existence of downloaded file
+	if [ ! -f ${targetDir}/cmudict.0.7a ]; then
+	  print_msg "Unknown error occured; trying next url!"
+	  # set wget_ret value to some other than the once returned by wget
+	  wget_ret=-1
+	  continue
+	else
+	  print_msg "got CMUDICT"
+	  break
+	fi
+      fi
+    done
+    # return the return value of the last wget call
+    return $wget_ret
+}
+
+# Download and install all software packages.
+# $1: User name for HTK site.
+# $2: Password for HTK site.
+function install_all
+{
+    install_beep
+    INST_BEEP_RET_VAL=$?
+
+    install_cmu_dict
+    INST_CMU_RET_VAL=$?
+}
+
+# Print summary of installation and report any errors.
+function print_summary
+{
+    local readonly success=": SUCCESS"
+    local readonly failure=": FAILURE"
+
+    print_subsec "Summary of installation"
+
+    if [ $INST_BEEP_RET_VAL -ne 0 ]; then
+        print_subsub "BEEP Dictionary${failure}"
+        print_msg "If you install the BEEP dictionary manually, please\n" \
+            "extract the files to 'lib_basic/dicts/beep', such that the file\n" \
+            "'lib_basic/dicts/beep/README' exists."
+    else
+        print_subsub "BEEP Dictionary${success}"
+    fi
+
+    if [ $INST_CMU_RET_VAL -ne 0 ]; then
+        print_subsub "CMU Dictionary${failure}"
+        print_msg "If you install the CMU dictionary manually, please copy \n" \
+            "copy 'cmudict.0.7a' to 'lib_basic/dicts/'."
+    else
+        print_subsub "CMU Dictionary${success}"
+    fi
+}
+
+function main
+{
+    rm -f autoinstDicts.log
+
+    targetDir=lib_basic/dicts
+
+    install_all \
+        > >(tee --append autoinstDicts.log) \
+        2> >(tee --append autoinstDicts.log >&2)
+
+    print_summary
+
+    print_subsub "Log file for all installations written to autoinstDicts.log."
+
+    exit 0
+}
+
+main

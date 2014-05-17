@@ -1,0 +1,101 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+. printlib
+
+print_header "$0"
+
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+pushd . > /dev/null
+cd $WORKPATH
+
+startTime=`date`
+backupTimeStamp=`date +%y.%m.%d_%M.%s`
+#--------------------------------
+# 1. Copy important configuration
+#--------------------------------
+
+# check for existing lib directory
+if [[ -d ${WSJLIB} ]]; then
+   print_msg "The directory\n" \
+	     "${WSJLIB}\n" \
+	     "already exists!\n " \
+	     "If you decide to proceed, its content will be overwritten!"
+
+   if  [ $FORCE == 1 ]; then
+       REPLY="Y"
+   else
+       read -p "Continue? (Y/N)? " REPLY
+   fi
+   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
+     print_msg "Recreating directory\n" \
+	     "${WSJLIB}\n"
+     print_msg "Placing a backup at ${WSJLIB}_${backupTimeStamp} directory!" \
+	     "${WSJLIB}\n"
+     mv ${WSJLIB} ${WSJLIB}_${backupTimeStamp}
+   else
+     print_msg "Exiting!"
+     exit 1
+   fi
+else
+  print_msg "Creating directory\n" \
+	     "${WSJLIB}\n"
+  mkdir -p ${WSJLIB}
+fi
+
+# copy the important parts of the basic lib
+cp  -r lib_basic/configs ${WSJLIB}/.
+cp  lib_basic/wsjquests.hed ${WSJLIB}/wsjquests.hed
+
+# back up the LOCAL_CONFIG to the current folder
+cp LOCAL_CONFIG ${WSJLIB}/LOCAL_CONFIG.bak
+
+
+#-----------------------------------------------------------
+# 2. prepare transcription, dictionaries, language models...
+#-----------------------------------------------------------
+
+# DO NOT CHANGE THIS ORDER
+trainScriptsInOrder=( \
+  wsjcam0_create_et_dt_dot_files \
+  wsjcam0_create_audio_file_lists \
+  wsjcam0_prepare_transcriptions \
+  wsj_prepare_monophone_dictionary \
+  wsj_prepare_triphone_dictionary \
+  wsj_prepare_language_models \
+  mcwsjav_prepare_transcriptions \
+)
+
+for script in ${trainScriptsInOrder[@]}
+do
+  # execute script and write to log file
+  print_msg "Executing ${script}"
+  date > logs/${script}.log
+  bash scripts/${script}  2>&1 | tee -a logs/${script}.log
+  date >> logs/${script}.log
+done
+
+endTime=`date`
+
+print_msg "Start: $startTime\n End: $endTime"
+
+popd > /dev/null
+exit
+

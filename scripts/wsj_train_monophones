@@ -1,0 +1,382 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec "Configuration"
+
+# Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsec "W1: Monophones Models"
+
+function clean_up
+{
+    print_subsec "Removing old files."
+
+    rm -f $WSJCAM0HMMS/W1/mono.list
+    rm -f $WSJCAM0HMMS/W1/hmm00/MMF0
+    rm -f $WSJCAM0HMMS/W1/hled.log
+    rm -f $WSJLIB/wlabs/si_tr_phones.mlf
+    rm -rf $WSJCAM0HMMS/W1/hmm00
+    rm -rf $WSJCAM0HMMS/W1/hmm01
+    rm -rf $WSJCAM0HMMS/W1/hmm02
+    rm -rf $WSJCAM0HMMS/W1/hmm03
+    rm -rf $WSJCAM0HMMS/W1/hmm04
+
+    rm -f $WSJCAM0HMMS/W1/sil.hed
+    rm -rf $WSJCAM0HMMS/W1/hmm05
+    rm -f $WSJCAM0HMMS/W1/mkphones1.led
+    rm -f $WSJLIB/wlabs/si_tr_phones.mlf
+    rm -rf $WSJCAM0HMMS/W1/hmm06
+    rm -rf $WSJCAM0HMMS/W1/hmm07
+    rm -f $WSJLIB/mlabs/si_tr_align.mlf
+    rm -f $WSJLIB/mlabs/si_tr_mono.mlf
+    rm -rf $WSJCAM0HMMS/W1/hmm0
+    rm -rf $WSJCAM0HMMS/W1/hmm1
+    rm -rf $WSJCAM0HMMS/W1/hmm2
+    rm -rf $WSJCAM0HMMS/W1/hmm3
+    rm -rf $WSJCAM0HMMS/W1/hmm4
+}
+
+# Generate the list of arguments for `HERest` for training of the hmms.
+# $1: Integer, e.g. "n". Then `HERest` will put its output into the directory
+#     `hmm0n`.
+# $2: list of monophones
+function generate_herest_argument {
+  local hmm_num=$(printf %02d $1)
+  local hmm_prev_num=$(printf %02d $((hmm_num - 1)))
+
+    echo "-A -D -T 1 \
+	-t 250.0 150.0 1000.0 \
+        -C ${CONFIG_BUILD} \
+        -I $WSJLIB/wlabs/si_tr_phones.mlf \
+        -S ${trainList} \
+        -H $WSJCAM0HMMS/W1/hmm${hmm_prev_num}/MMF \
+        -M $WSJCAM0HMMS/W1/hmm${hmm_num} \
+        $2"
+}
+
+# check for existing file and exit if file is missing; 
+# preventing screen from being flooded by error messages
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+# check if the current working directory already exists
+if [ -e $WSJCAM0HMMS/W1 ]; then
+  echo "The current working directory $WSJCAM0HMMS/W1 already exists!"
+  echo "If you decide to proceed, all its content will be removed!"
+  read -p "Continue? (Y/N)? " REPLY
+  if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
+    echo "Continuing!"
+  else
+    echo "Exiting!"
+    exit 1
+  fi
+fi
+
+# clean_up_first
+clean_up
+
+pushd . > /dev/null
+# -p means no error if existing, create parent when not existing
+mkdir -p $WSJCAM0HMMS/W1
+print_msg "Directory  $WSJCAM0HMMS created"
+
+cd $WSJCAM0HMMS/W1
+
+# this will be the training list; can be modified 
+# however, make sure the mlf file created in prepare monophone dictionary 
+# will be changed, too: 
+trainList=$WSJLIB/flists/si_tr.scp
+cp $WSJLIB/flists/si_tr.lst $trainList
+
+
+echo "-------------------------------------------------"
+echo "Create prototype MMF                             "
+echo "-------------------------------------------------"
+#############################################
+# generate a template for a prototype model #
+#############################################
+# grep the hcopy configuration for the TARGETKIND 
+OLDIFS=$IFS
+IFS='='
+tKindLine=`grep -i "targetkind" ${CONFIG_HCOPY_COMMON}`
+# split using the = 
+set ${tKindLine}
+# remove spaces and assign tKind for prototype creation
+tKind=`echo "${2}" | sed 's/ //g'`
+IFS=$OLDIFS
+
+# the number of emmitting states may be changed, however:
+# later on, sp and sil share the center state and further 
+# transitions from the last to the first state are added for sp;
+# since this is "hard-coded", the respective sectinos have to be 
+# changes, too
+NoOfEmmittingHMMstates=3
+cat > sim.pcf << EOF 
+<BEGINproto_config_file>
+<COMMENT>
+This PCF produces a single mixture, single stream prototype system
+<BEGINsys_setup>
+hsKind: P
+covKind: D
+nStates: ${NoOfEmmittingHMMstates}
+nStreams: 1
+sWidths: ${NoOfFeatureVectorComponents}
+mixes: 1
+parmKind: ${tKind}
+vecSize: ${NoOfFeatureVectorComponents}
+outDir: ${WSJLIB}
+hmmList: ${WSJLIB}/protolist
+<ENDsys_setup>
+<ENDproto_config_file>
+EOF
+echo wsjproto > ${WSJLIB}/protolist
+
+# MakeProtoHMMSet script from HTKRM/perl_scripts
+# correct interpreter error
+sed -e 's/\r\n?/\n/' $(find ${HTKSamples} -type f -name MakeProtoHMMSet.prl) > ${WSJTOOLS}/perl/MakeProtoHMMSet
+chmod u+x ${WSJTOOLS}/perl/MakeProtoHMMSet
+echo "N" | perl ${WSJTOOLS}/perl/MakeProtoHMMSet sim.pcf
+rm -f ${WSJLIB}/protolist 
+
+
+print_subsub "Compute global mean and variance, variance floors\n" \
+    "using the supplied prototype ${WSJLIB}/wsjproto"
+mkdir -p hmm00
+
+HCompV \
+    -A -D -T 1 \
+    -f 0.01 \
+    -m \
+    -C ${CONFIG_BUILD} \
+    -S ${trainList} \
+    -M hmm00 \
+    $WSJLIB/wsjproto | tee vfloor.log
+
+print_subsub "Create the models for flat-start\n" \
+    "by manually copying the prototype from hmm00"
+
+cp $WSJLIB/mlists/mono0.list mono.list
+echo 'sil' >> mono.list
+
+modells=(`cat mono.list`)
+sed -n '/^\~o/,/^<VECSIZE>/p' hmm00/wsjproto > hmm00/MMF0
+cat hmm00/vFloors >> hmm00/MMF0
+for currentModel in ${modells[@]}; do
+  echo "~h \"${currentModel}\"" >> hmm00/MMF0
+  sed -n '/<BEGINHMM>/,$p' hmm00/wsjproto >> hmm00/MMF0
+done
+
+print_subsub "Increase the number of mixture components\n" \
+    "to 8 for silence model"
+
+echo 'MU 8 {sil.state[2-4].mix}' >> silx8.hed
+HHEd \
+  -A -D -T 1 \
+  -H hmm00/MMF0  \
+  -w hmm00/MMF \
+  silx8.hed \
+  mono.list
+
+rm silx8.hed
+# check
+stop_on_missing_file hmm00/MMF
+
+print_subsub "Prepare phone-transcription of training set"
+
+# First prepare the edit script file for HLEd.
+# this command adds the sent start and end
+# The monophone transcription of training set (si_tr_phones.mlf)
+# doesn't include <sp> model. The <sil> is only at begining and end
+# of each word.
+cat > mkphones0.led <<EOF
+EX
+DE sp
+IS sil sil
+ME sil sil sil
+EOF
+
+
+# -d s : read dictionary from file s to expand the words
+# -i mlf : write output transcription to file mlf
+# mkphones0.led is the edit script
+# si_tr_words.mlf.tmp is the transcription of training set
+# ( it includes verbalized punctuation )
+HLEd \
+    -A -D -T 1 \
+    -l '*' \
+    -d $WSJLIB/dicts/si_tr_mono.dict \
+    -i $WSJLIB/wlabs/si_tr_phones.mlf \
+    mkphones0.led  \
+    $WSJLIB/wlabs/si_tr_words.mlf.tmp > hled.log
+
+# sed -i -e "s/'*'/*/g" $WSJLIB/wlabs/si_tr_phones.mlf 
+rm mkphones0.led
+
+for i in 1 2 3
+do
+  print_subsub "Reestimation ${i}"
+
+  mkdir -p hmm0$i
+
+  parallelHTK $NBPROC HERest $(generate_herest_argument $i $WSJCAM0HMMS/W1/mono.list)
+  # check
+  stop_on_missing_file hmm0${i}/MMF
+done
+
+
+print_subsub "Creating the short pause model (sp)\n" \
+      "from the silence model"
+
+mkdir -p hmm04
+cp  hmm03/MMF hmm04/MMF
+# tool from HTKDemo
+makesp hmm03/MMF >> hmm04/MMF 
+# check
+stop_on_missing_file hmm04/MMF
+
+print_subsub "Fixing silence and sp models"
+
+cat > sil.hed <<EOF
+AT 2 4 0.2 {sil.transP}
+AT 4 2 0.2 {sil.transP}
+AT 1 3 0.3 {sp.transP}
+TI silst {sil.state[3],sp.state[2]}
+EOF
+
+mkdir -p hmm05
+# mono1.list has all models, including sil and sp
+HHEd \
+  -A -D -T 1 \
+  -H hmm04/MMF \
+  -M hmm05 \
+  sil.hed \
+  $WSJLIB/mlists/mono1.list
+# check
+stop_on_missing_file hmm05/MMF
+
+print_subsub "Prepare phone-transcription of training set with <sp>"
+
+cat > mkphones1.led <<EOF
+EX
+IS sil sil
+ME sil sil sil
+ME sil sp  sil
+EOF
+
+# -d s : read dictionary from file s to expand the words
+# -i mlf : write output transcription to file mlf
+# mkphones0.led is the edit script
+# si_tr_words.mlf.tmp is the transcription of training set
+# ( it includes verbalized punctuation )
+HLEd \
+    -A -D -T 1 \
+    -l '*' \
+    -d $WSJLIB/dicts/si_tr_mono.dict \
+    -i $WSJLIB/wlabs/si_tr_phones.mlf \
+    mkphones1.led  \
+    $WSJLIB/wlabs/si_tr_words.mlf.tmp
+
+print_subsub "Reestimation 1 after fixing sil"
+
+mkdir -p hmm06
+parallelHTK $NBPROC HERest $(generate_herest_argument 6 $WSJLIB/mlists/mono1.list)
+# check
+stop_on_missing_file hmm06/MMF
+
+# print_subsub "Reestimation 2 after fixing sil"
+mkdir -p hmm07
+cp hmm06/MMF hmm07/MMF
+# optional! 
+# parallelHTK HERest $(generate_herest_argument 7 $WSJLIB/mlists/mono1.list)
+# check
+stop_on_missing_file hmm07/MMF
+
+print_subsub "Realign data"
+
+parallelHTK $NBPROC HVite \
+    -A -D -T 1 \
+    -l '*' \
+    -o SWT \
+    -C ${CONFIG_ALIGN} \
+    -H $WSJCAM0HMMS/W1/hmm07/MMF \
+    -i $WSJLIB/mlabs/si_tr_align.mlf \
+    -m \
+    -a \
+    -t 250.0 150.0 1000.0 \
+    -y lab \
+    -I $WSJLIB/wlabs/si_tr_words.mlf \
+    -S ${trainList} \
+    $WSJLIB/dicts/si_tr_mono.dict \
+    $WSJLIB/mlists/mono1.list
+
+#remove sp sil and sil sil entries from si_tr_align.mlf
+cat > $WSJLIB/mlabs/spsil.led <<EOF
+ME sil sp sil
+ME sil sil sil
+EOF
+
+HLEd \
+    -A -D -T 1 \
+    -l '*' \
+    -i $WSJLIB/mlabs/si_tr_mono.mlf \
+    $WSJLIB/mlabs/spsil.led \
+    $WSJLIB/mlabs/si_tr_align.mlf
+
+print_subsec "Refining model after realignement"
+
+mkdir -p $WSJCAM0HMMS/W1/hmm0
+
+cp hmm07/MMF $WSJCAM0HMMS/W1/hmm0/.
+# check
+stop_on_missing_file hmm0/MMF
+
+export WSJHTE=$WSJLIB/configs/HTE.mono
+
+cd $WSJCAM0HMMS/W1
+for i in 1 2 3 4
+do
+  print_subsub "Re-estimation hmm$((i - 1)) -> hmm${i}"
+
+  mkdir hmm$i
+  parallelHTK $NBPROC HERest \
+      -A -D -T 1 \
+      -t 250.0 150.0 1000.0 \
+      -H $WSJCAM0HMMS/W1/hmm$((i-1))/MMF \
+      -M $WSJCAM0HMMS/W1/hmm$i \
+      -I $WSJLIB/mlabs/si_tr_mono.mlf \
+      -s $WSJCAM0HMMS/W1/hmm$i/stats \
+      -C ${CONFIG_HEREST} \
+      -S ${trainList} \
+      $WSJLIB/mlists/mono1.list
+  # check
+  stop_on_missing_file hmm${i}/MMF
+done
+
+popd > /dev/null

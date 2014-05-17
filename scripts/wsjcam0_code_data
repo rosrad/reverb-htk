@@ -1,0 +1,125 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+print_subsec "Configuration"
+
+# Configure paths by editing LOCAL_CONFIG, then load it.
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsec "W0: Prepare Data"
+
+print_subsub 'Code WSJCAM0 training, dev and eval data'
+
+# create a tmp dir to work in
+tmpDir=`mktemp -d -p ${WORKPATH}`
+pushd . > /dev/null
+cd $tmpDir
+
+# specify the microphone used for training/testing
+# either: primary_microphone or secondary_microphone
+# For the REVERB challenge we use primary_microphone
+micType=primary_microphone
+
+# the naming convention is: primary_microphone --> file extension wv1
+#                           secondary_microphone --> file extension wv2
+case "${micType}" in
+    primary_microphone )
+        audioFileExtension=wv1 ;;
+    secondary_microphone )
+        audioFileExtension=wv2 ;;
+    * )
+        echo "Error: Unkown microphone!"\
+            "Chose either 'primary_microphone' or 'secondary_microphone'!"
+        exit -1 ;;
+esac
+
+
+## WSJCAM0 feature extraction; specify the files for feature extraction
+#	   (created by 'wsjcam0_create_audio_file_lists')
+fileLists=( \
+            $WSJLIB/flists/audio_si_tr.lst 
+          )
+#            $WSJLIB/flists/audio_si_dt5a.lst \
+#            $WSJLIB/flists/audio_si_dt5b.lst \
+#            $WSJLIB/flists/audio_si_et_1.lst \
+#            $WSJLIB/flists/audio_si_et_2.lst \
+
+
+for (( count=0; count<${#fileLists[*]}; count++ ))
+do
+   # infere output feature file list
+   audioFileList=${fileLists[${count}]}
+   stop_on_missing_file ${audioFileList}
+
+   # create the list of feature files by removing the 'audio_' part from the ${audioFileList}
+   featureFile=$(basename ${audioFileList} | sed -e 's/^audio_//g')  
+   echo $featureFile
+   featureFileList=$(dirname ${audioFileList} )/${featureFile}
+
+   print_msg "Creating feature file list\n ${featureFileList} \nfrom audio file list \n ${audioFileList}"
+   sed -e 's,'"${WSJCAM0}"'/data,'"${WSJCAM0FEATURES}"',g' \
+      -e 's,'"${audioFileExtension}"','"${featureFileExtension}"',g' \
+      ${audioFileList} \
+    > ${featureFileList}
+  
+   #extract the features, if desired; otherwise, just create the 'list of feature files' file
+   if [ "${extractFeatures}" = "true" ]; then
+    print_msg "Create directory structure - this may take a while ..." 
+    sed -e 's,\(.*\)\/.*,\1,' "${featureFileList}" \
+        | sort -u  \
+        | xargs mkdir -p
+    print_msg "done!"
+
+    print_msg "Feature extraction using audio file list:\n ${featureFileList} "
+    scpList=`pwd`/code.scp
+    paste --delimiters=' ' ${audioFileList} ${featureFileList} > ${scpList}
+
+    # note: nist sphere works with tmp files; 
+    # Not multi-process safe unless you applied the patch provided in tools/ prior to installing sphere 
+    # This is already done if you used installTools to install nist sphere.
+    # !! If you installed nist sphere by yourself, without applying the patch, 
+    # !! remove "parallelHTK $NBPROC" from the line below.
+    parallelHTK $NBPROC HCopy \
+      -A -D -T 1 \
+      -C ${CONFIG_HCOPY_COMMON} \
+      -C ${CONFIG_HCOPY_WSJCAM0} \
+      -S ${scpList}
+
+    # remove scp file
+    rm code.scp
+  else
+     print_msg "Skipping feature extraction; just creating feature file lists!"
+  fi
+done
+
+popd > /dev/null
+rm -rf ${tmpDir}

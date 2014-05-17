@@ -1,0 +1,91 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+print_subsec "Configuration"
+
+# Configure paths by editing LOCAL_CONFIG, then load it.
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsec "W0: Prepare Data"
+
+print_subsub 'Code REVERB_WSJCAM0 training data!'
+
+tmpDir=`mktemp -d -p ${WORKPATH}`
+pushd . > /dev/null
+cd $tmpDir
+
+audioFileExtension=wav
+taskFileDir=${WORKPATH}/taskFiles/1ch/
+
+flistDir=${WSJLIB}/flists/reverbWSJcam0
+mkdir -p $flistDir
+mkdir -p $REVERBWSJFEATURES
+
+
+# Feature extraction for the training data
+taskName=SimData_tr_for_1ch_A
+audioFileList=$flistDir/audio_${taskName}.lst
+featureFileList=$flistDir/$(basename ${audioFileList} | sed -e 's/^audio_//g') 
+taskFile=$taskFileDir/${taskName}
+sed -e 's,^,'"${REVERB_WSJCAM0_TR}"'/data,' \
+    $taskFile	> $audioFileList
+
+# Need to remove the channel index
+sed -e 's/_ch1././' \
+    -e 's/.'"${audioFileExtension}"'$/.'"${featureFileExtension}"'/' \
+    -e 's,^,'"${REVERBWSJFEATURES}"',' \
+    $taskFile > $featureFileList
+
+if [ "${extractFeatures}" = "true" ]; then
+    print_msg "Create directory structure - this may take a while ..." 
+    sed -e 's,\(.*\)\/.*,\1,' "${featureFileList}" \
+	| sort -u  \
+	| xargs mkdir -p
+    print_msg "done!"
+    
+    scpTask=$flistDir/$(basename ${featureFileList} | sed -e 's/.lst/.scp/g')
+    print_msg "Feature extraction using audio file list:\n ${featureFileList} "
+    paste --delimiters=' ' ${audioFileList} ${featureFileList} > $scpTask
+    
+    parallelHTK  $NBPROC HCopy \
+	-A -D -T 1 \
+	-C ${CONFIG_HCOPY_COMMON} \
+	-C ${CONFIG_HCOPY_MCWSJAV} \
+	-S $scpTask
+    
+else
+    print_msg "Skipping feature extraction; just creating feature file lists!"
+fi
+
+
+popd > /dev/null
+rm -rf ${tmpDir}

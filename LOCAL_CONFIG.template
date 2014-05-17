@@ -1,0 +1,199 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+# You should change this file according to you system configuration
+# and copy it to LOCAL_CONFIG
+# - optional changes are indicated with (OPTIONAL)
+# - mandatory changes are indicated with (MANDATORY)
+#
+# !! NOTE: do not modify the LOCAL_CONFIG while the training/testing is running, 
+# !! since all scripts execute the LOCAL_CONFIG prior to any other processing!
+
+
+# Path to current working directory: usually just pwd.
+# (OPTIONAL)
+export WORKPATH=`pwd`
+
+########################################################################
+# Shall the features be extracted from WSJCAM0/MCWSJAV database
+# for training and testing? 
+# (OPTIONAL)
+export extractFeatures=true
+
+# Set the task set to use (dt: development or et: evaluation).
+# (OPTIONAL)
+# NOTE: in case "et" is part of the list below (i.e., after the task files
+#       for the evaluation set is available to you, mcwsjav_prepare_transcriptions
+#       has to be run again!
+export TASKSET="dt" #"et" or "dt et" for evaluation
+
+# Specify the name of the current task to be able to
+# distinguish between configurations later on.
+# The taskName will automatically be appended to directory names.
+# If required; e.g., you may choose the feature type used for training
+# added by some parameters to be investigated.
+# !! Note that if you modify the taskName you need to train the 
+# !! acoustic models (by commenting out the corresponding line in 
+# !! WSJBuildAndTest).
+# (OPTIONAL)
+export taskName=MFCC_0_D_A_Z_CEPLIFTER_1
+
+# For the creation of the prototype HMM
+# the following information is required.
+# Note: the HTK targetKind will be infered
+# from the configuration lib_basic/configs/config.hcopy_common.
+# Used to extract the features by looking at the specified TARGETKIND.
+# !! Note that if you modify the taskName you need to train the 
+# !! acoustic models (by commenting out the corresponding line in 
+# !! WSJBuildAndTest).
+# (OPTIONAL)
+export NoOfFeatureVectorComponents=39
+
+# Specify a feature file extension.
+# (OPTIONAL)
+export featureFileExtension=mfc
+
+# Set the number of processes to be used for parallelHTK.
+# (OPTIONAL)
+export NBPROC=1
+
+########################################################################
+# You should modify the paths below, where ${HOME} should be replaced with
+# the path where you saved the databases.
+
+# Path to the wsjcam0 database.
+# (MANDATORY)
+export WSJCAM0=${HOME}/wsjcam0 
+
+# Location of REVERB_WSJCAM0 database subsets.
+# A) Multi Condition Training Data
+# Please generate the multi condition training data using
+# the script available at http://reverb2014.dereverberation.com/download.html
+# (MANDATORY if you want to train the acoustic models).
+export REVERB_WSJCAM0_TR=${HOME}/REVERB_WSJCAM0_tr
+
+# B) Development test.
+# (MANDATORY)
+export REVERB_WSJCAM0_DT=${HOME}/REVERB_WSJCAM0_dt
+
+# C) Evaluation test (to be released later on!).
+# (MANDATORY)
+export REVERB_WSJCAM0_ET=${HOME}/REVERB_WSJCAM0_et
+
+# Location of the MCWSJAV database subsets.
+# A) Development test.
+# (MANDATORY)
+export MCWSJAV_DT=${HOME}/MC_WSJ_AV_Dev
+
+# B) Evaluation test (to be released later on!).
+# (MANDATORY)
+export MCWSJAV_ET=${HOME}/MC_WSJ_AV_Eval
+
+# Location of language model file bcb05cnp.z.
+# Only used for wsj_prepare_language_model.
+# Specifying the main directory is sufficient.
+# The scipt will find the exact location automatically.
+# (MANDATORY)
+export LMPATH=${HOME}/WSJ0_LangMod_REVERB
+
+# Location of the mlf file containing MC_WSJ_AV transcriptions
+# (OPTIONAL)
+export MCWSJAVMLF=${MCWSJAV_DT}/mlf/WSJ.mlf
+
+# Specify the base directories where, later on, 
+# the features and the results will be found.
+# (OPTIONAL)
+WSJCAM0BASE=${WORKPATH}/WSJCAM0
+REVERBWSJBASE=${WORKPATH}/REVERBWSJCAM0
+MCWSJAVBASE=${WORKPATH}/MCWSJAV
+
+########################################################################
+################ NO CHANGE BELOW THIS LINE REQUIRED ####################
+########################################################################
+
+# The directory where the feature vectors will be stored in.
+export WSJCAM0FEATURES=$WSJCAM0BASE/features/${taskName}
+export REVERBWSJFEATURES=$REVERBWSJBASE/features/${taskName}
+export MCWSJAVFEATURES=$MCWSJAVBASE/features/${taskName}
+
+# The directory where the results can be found.
+export WSJCAM0RESULTS=$WSJCAM0BASE/results/${taskName}/clean_cond
+export REVERBWSJRESULTS=$REVERBWSJBASE/results/${taskName}/clean_cond
+export REVERBWSJRESULTS_MC=$REVERBWSJBASE/results/${taskName}/multi_cond
+export MCWSJAVRESULTS=$MCWSJAVBASE/results/${taskName}/clean_cond
+export MCWSJAVRESULTS_MC=$MCWSJAVBASE/results/${taskName}/multi_cond
+
+# The directory where the HMMs can be found.
+export WSJCAM0HMMS=${WORKPATH}/models/clean_cond/HMM/${taskName}
+export REVERBWSJHMMS=${WORKPATH}/models/multi_cond/HMM/${taskName}
+
+# The lib directory.
+export WSJLIB=$WORKPATH/lib_${taskName}
+
+# The tools.
+export WSJTOOLS=$WORKPATH/tools
+
+########################################################################
+# The following variables don't have to be changed, if
+# "installDicts" (mandatory call)
+# and
+# "installTools" (optional call)
+# have been called prior to this script.
+########################################################################
+
+# Paths created by installDicts.
+# Location of CMU Dictionary and the BEEP dictionary.
+export CMU_DICT=${WORKPATH}/lib_basic/dicts/cmudict.0.7a
+export BEEP_DICT=${WORKPATH}/lib_basic/dicts/beep/beep-1.0
+
+# Paths created by installTools.
+# Location of HTK tools.
+HTKSoftwareBin=${WSJTOOLS}/HTK/htk/bin # all HTK tools
+# Location of the HTK samples.
+export HTKSamples=${WSJTOOLS}/HTK/samples # all HTK samples
+# Location of NIST SPHERE tools.
+NISTSPHERESoftwareBin=${WSJTOOLS}/SPHERE/nist/bin
+
+# Add to PATH variable.
+export PATH=${PATH}:${HTKSoftwareBin} 
+export PATH=${PATH}:${HTKSamples}/HTKTutorial # maketrihed
+export PATH=${PATH}:${HTKSamples}/RMHTK/perl_scripts # MakeProtoHMMSet.prl and mkclscript.prl 
+export PATH=${PATH}:${NISTSPHERESoftwareBin}
+
+# Add helper tools to search path.
+export PATH=${PATH}:${WSJTOOLS}/perl
+export PATH=${PATH}:${WSJTOOLS}/bash
+
+########################################################################
+
+# This command is related to the "sort" function supplied by OS (shell).
+# See man sort (WARNING), HTK expects ASCII sorted dictionary.
+# Without this, sort doesn't sort in ASCII order.
+export LC_ALL=C
+
+########################################################################
+
+# HTK configs.
+export CONFIG_ALIGN=${WSJLIB}/configs/config.align
+export CONFIG_BUILD=${WSJLIB}/configs/config.build
+export CONFIG_HEREST=${WSJLIB}/configs/config.herest
+# Set the common config parameters, e.g. all feature extraction parameters.
+export CONFIG_HCOPY_COMMON=${WSJLIB}/configs/config.hcopy_common
+# The additional hcopy configuration for the original shorten NIST file format
+# the WSJCAM0 data are given in.
+export CONFIG_HCOPY_WSJCAM0=${WSJLIB}/configs/config.hcopy_WSJCAM0
+# the additional hcopy configuration for the wav format the MCWSJAV data are give in
+export CONFIG_HCOPY_MCWSJAV=${WSJLIB}/configs/config.hcopy_MCWSJAV
+

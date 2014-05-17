@@ -1,0 +1,111 @@
+ #!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec 'Configuration'
+#Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+tmpDir=`mktemp -d -p ${WORKPATH}`
+pushd . > /dev/null
+cd $tmpDir
+
+
+# Feature extraction for the test data
+# List of recognition tasks
+tasks="near far"
+
+# List of test sets
+testSets=$TASKSET #"dt et"
+
+audioFileExtension=wav
+taskFileDir=${WORKPATH}/taskFiles/1ch/
+
+flistDir=${WSJLIB}/flists/mcwsjav
+mkdir -p $flistDir
+mkdir -p ${MCWSJAVFEATURES}
+for task in $tasks;
+do
+  for testSet in $testSets;
+  do
+    if [ "$testSet" = "dt" ]; then
+      DBBASE=$MCWSJAV_DT
+    elif [ "$testSet" = "et" ]; then
+      DBBASE=$MCWSJAV_ET
+    else
+      print_msg "Unknown test set $testSet; must be either dt or et!"
+      exit 1
+    fi
+    # check
+    #if [ ! -e "${DBBASE}/audio" ]; then
+     # print_msg "Unknow database structure! Check installation for task $task!"
+     # exit 1
+    #fi
+    print_msg $testSet
+    taskName=RealData_${testSet}_for_1ch_${task}_room1_A
+    
+    audioFileList=$flistDir/audio_${taskName}.lst
+    featureFileList=$flistDir/$(basename ${audioFileList} | sed -e 's/^audio_//g') 
+    taskFile=$taskFileDir/$taskName
+
+    # prepend directory of the database to the lists entries
+    sed -e 's,^,'"${DBBASE}"',' \
+	   $taskFile > $audioFileList
+
+    # prepend directory to store the features to the lists entries and change the file extension
+    sed -e 's/.'"$audioFileExtension"'$/.'"${featureFileExtension}"'/' \
+        -e 's,^,'"${MCWSJAVFEATURES}"',' \
+         $taskFile > $featureFileList
+
+    #extract the features, if desired; otherwise, just create the 'list of feature files' file
+    if [ "${extractFeatures}" = "true" ]; then
+      # create directory structure for the features  
+      print_msg "Create directory structure - this may take a while ..." 
+      sed -e 's,\(.*\)\/.*,\1,' "${featureFileList}" \
+          | sort -u  \
+          | xargs mkdir -p
+      print_msg "done!"
+
+      print_msg "Feature extraction using audio file list:\n ${audioFileList}"
+      scpList=`pwd`/code.scp
+      paste --delimiters=' ' ${audioFileList} ${featureFileList} > ${scpList}
+      parallelHTK $NBPROC HCopy \
+	  -A -D -T 1 \
+  	  -C ${CONFIG_HCOPY_COMMON} \
+	  -C ${CONFIG_HCOPY_MCWSJAV} \
+	  -S ${scpList}
+      else
+        print_msg "Skipping feature extraction; just creating audio and feature file lists!"
+      fi
+  done
+done
+popd > /dev/null
+rm -rf ${tmpDir}

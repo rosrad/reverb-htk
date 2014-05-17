@@ -1,0 +1,84 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+pushd . > /dev/null
+cd $WORKPATH
+
+
+startTime=`date`
+
+
+#----------------------
+# 1. Feature extraction
+#----------------------
+
+testScriptsInOrder=( \
+  reverbwsjcam0_code_data_testing \ 
+#  mcwsjav_code_data \
+)
+
+for script in ${testScriptsInOrder[@]}
+do
+  # execute script and write to log file
+  print_msg "Executing ${script}"
+  date > logs/${script}.log
+  bash scripts/${script} 2>&1 | tee -a logs/${script}.log
+  date >> logs/${script}.log
+done
+
+echo "test data output ready"
+read Wait
+#----------------------------
+# 2. Recognition & evaluation
+#----------------------------
+
+testScriptsInOrder=( \
+  reverbwsjcam0_recognize \
+  reverbwsjcam0_recognize_multicond \
+  reverbwsjcam0_recognize_cmllr_clean \ 
+  reverbwsjcam0_recognize_cmllr_multi \ 
+#  mcwsjav_recognize \
+#  mcwsjav_recognize_multicond \
+#  mcwsjav_recognize_cmllr_clean \
+#  mcwsjav_recognize_cmllr_multi \
+  summarize_results \  
+)
+
+for script in ${testScriptsInOrder[@]}
+do
+  # execute script and write to log file
+  print_msg "Executing ${script}"
+  date > logs/${script}.log
+  bash scripts/${script} 2>&1 | tee -a logs/${script}.log
+  date >> logs/${script}.log
+done
+
+endTime=`date`
+
+print_msg "Start: $startTime\n End: $endTime"
+
+popd > /dev/null
+exit

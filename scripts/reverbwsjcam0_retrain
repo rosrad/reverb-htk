@@ -1,0 +1,186 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+# check for existing file and exit if file is missing; 
+# preventing screen from being flooded by error messages
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+print_subsec 'Configuration'
+# Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+pushd . > /dev/null
+print_subsec "Retrain model with REVERB_CAM0 multi-condition data"
+
+condition=reverb
+
+# specify train list; can be changed later on
+taskName=SimData_tr_for_1ch_A
+trainList=$WSJLIB/flists/reverbWSJcam0/${taskName}.lst
+
+currWorkDir=${REVERBWSJHMMS}/W_${condition}
+
+mkdir -p ${currWorkDir}
+pushd . > /dev/null
+cd ${currWorkDir}
+
+numberOfGaussians=10
+
+if [ ! -e ${WSJCAM0HMMS}/W2/winttree.list ] ||
+   [ ! -e $WSJLIB/mlabs/si_tr_wint.mlf ] ; 
+then
+    print_msg 'ERROR: File missing. Before running this script you need to run wsj_train_monophones and wsj_train_triphones.'
+    exit 1      
+fi
+
+# clean up
+rm -rf hmm*
+# re-create initial MMF directory
+mkdir -p hmm${numberOfGaussians}0
+# copy the clean MMF to the initial MMF directory
+cp ${WSJCAM0HMMS}/W2/hmm${numberOfGaussians}4/MMF ${currWorkDir}/hmm${numberOfGaussians}0/MMF
+# and the word internal triphone list 
+cp ${WSJCAM0HMMS}/W2/winttree.list ${currWorkDir}/winttree.list
+# the label file
+label=$WSJLIB/mlabs/si_tr_wint.mlf
+
+for it in 1 2 3 4
+do
+  # create dir
+  mkdir -p ${currWorkDir}/hmm${numberOfGaussians}${it}
+  # run HERest
+  parallelHTK $NBPROC HERest \
+      -A -D -T 1 \
+      -c 15.0 \
+      -m 0 \
+      -w 2.0 \
+      -t 250.0 150.0 1000.0 \
+      -C ${CONFIG_HEREST} \
+      -H ${currWorkDir}/hmm${numberOfGaussians}$((it-1))/MMF \
+      -I $label \
+      -M ${currWorkDir}/hmm${numberOfGaussians}$it \
+      -S ${trainList} \
+      -s ${currWorkDir}/hmm${numberOfGaussians}$it/stats \
+      ${currWorkDir}/winttree.list
+  # check
+  stop_on_missing_file ${currWorkDir}/hmm${numberOfGaussians}${it}/MMF
+
+  # okay, we may have some mixtures that have been marked as defunct,
+  # call HHED to make sure the number of mixture components is as desired
+  # important for CMLLR adapatation
+  mv ${currWorkDir}/hmm${numberOfGaussians}$it/MMF ${currWorkDir}/hmm${numberOfGaussians}$it/MMF_possibly_defunct
+  # Create edfiles
+  echo "MU ${numberOfGaussians} {*.state[2-4].mix}" \
+      > $WSJLIB/edfiles/edfile${numberOfGaussians}
+  echo "MU $((${numberOfGaussians} * 2)) {(sp,sil).state[2-4].mix}" \
+      >> $WSJLIB/edfiles/edfile${numberOfGaussians}
+
+  HHEd -T 1 \
+      -D \
+      -A \
+      -H ${currWorkDir}/hmm${numberOfGaussians}${it}/MMF_possibly_defunct \
+      -w ${currWorkDir}/hmm${numberOfGaussians}${it}/MMF \
+      $WSJLIB/edfiles/edfile${numberOfGaussians} \
+      ${currWorkDir}/winttree.list \
+      | tee ${currWorkDir}/hmm${numberOfGaussians}${it}/recover_defunct.log
+
+ done
+
+# increment mixture
+OLDIFS=$IFS
+IFS=','
+for i in $numberOfGaussians,$(($numberOfGaussians+2)) 
+do
+    set $i
+
+    print_msg "---- ${1} -> ${2}"
+
+    # Create edfiles
+    echo "MU ${2} {*.state[2-4].mix}" \
+	> $WSJLIB/edfiles/edfile${1}4.${2}0
+    echo "MU $(($2 * 2)) {(sp,sil).state[2-4].mix}" \
+	>> $WSJLIB/edfiles/edfile${1}4.${2}0
+
+    # create directory
+    mkdir -p ${currWorkDir}/hmm${2}0
+
+    HHEd -T 1 \
+	-D \
+	-A \
+	-H ${currWorkDir}/hmm${1}4/MMF \
+	-w ${currWorkDir}/hmm${2}0/MMF  \
+	$WSJLIB/edfiles/edfile${1}4.${2}0 \
+	${currWorkDir}/winttree.list \
+	| tee ${currWorkDir}/hmm${2}0/mixsplit.log
+
+    # check 
+    stop_on_missing_file hmm${2}0/MMF
+
+    for it in 1 2 3 4
+      do
+      # create directory
+      mkdir ${currWorkDir}/hmm${2}$it
+
+      # run herest
+      parallelHTK $NBPROC HERest \
+	  -A -D -T 1 \
+	  -c 15.0 \
+	  -m 0 \
+	  -w 2.0 \
+	  -t 250.0 150.0 1000.0 \
+	  -C ${CONFIG_HEREST} \
+	  -H ${currWorkDir}/hmm${2}$((it-1))/MMF \
+	  -I $label \
+	  -M ${currWorkDir}/hmm${2}$it \
+	  -S ${trainList} \
+	  -s ${currWorkDir}/hmm${2}$it/stats \
+	  ${currWorkDir}/winttree.list
+  
+      # check 
+      stop_on_missing_file ${currWorkDir}/hmm${2}$it/MMF
+
+      # okay, we may still have some mixtures that have been marked as defunct,
+      # call HHED again to make sure the number of mixture components is as desired
+      # important for CMLLR adapatation
+      # use the hhed script created prior
+      mv ${currWorkDir}/hmm${2}${it}/MMF ${currWorkDir}/hmm${2}$it/MMF_possibly_defunct
+      HHEd -T 1 \
+	  -D \
+	  -A \
+	  -H ${currWorkDir}/hmm${2}$it/MMF_possibly_defunct \
+	  -w ${currWorkDir}/hmm${2}${it}/MMF \
+	  $WSJLIB/edfiles/edfile$((${numberOfGaussians}-2))4.${numberOfGaussians}0 \
+	  ${currWorkDir}/winttree.list \
+	  | tee ${currWorkDir}/hmm${2}${it}/recover_defunct.log
+
+    done
+done
+
+popd > /dev/null

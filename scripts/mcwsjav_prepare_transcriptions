@@ -1,0 +1,129 @@
+#!/bin/bash
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec "Local Configuration"
+# Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+function correct_MLF
+#
+# corrects some minor transcription errors
+{
+sed -e '
+# dos to unix line feed conversion
+s/\x0D$//' \
+-e "
+            s/\x60//g              # remove unicode character grave accent.
+       " \
+-e "
+            # fix the single quote for the word yield
+	    # and the quoted ROOTS
+            # e.g. yield' --> yield
+            # reason: YIELD' is not in dict, while YIELD is
+            s/YIELD'/YIELD/g
+            s/'ROOTS'/ROOTS/g 
+            s/'WHERE/WHERE/g 
+            s/PEOPLE'/PEOPLE/g
+            s/SIT'/SIT/g
+            s/'DOMINEE/DOMINEE/g 
+            s/CHURCH'/CHURCH/g" \
+-e '
+	      # fix the single missing double full stop issue at the end of an utterance
+	      # e.g. I. C. N should be  I. C. N.
+	      # reason: N is not in dict, while N. is
+	      /^[A-Z]$/ {
+	      # append a line
+		      N
+	      # search for single dot on the second line	
+		      /\n\./ {
+	      # found it - now replace the 
+			      s/\([A-Z]\)\n\./\1\.\n\./
+		      }
+	      }' \
+$1
+}
+
+# -e  '
+# 	    # Compensate for a malformed utterance id in the audio file names
+# 	    #
+# 	    # There exist audio files with the utterance id T25c02012, e.g.
+# 	    # Array1-1_T25c02012.wav, but there is no .pmt file containing
+# 	    # a prompt with this utterance id. So we replace the "correct" utterance id
+# 	    # T25c0212 by the "malformed" T25c02012 in the generated MLF file.
+# 	    s/T25c0212/T25c02012/g
+# ' \
+
+function extract_utterance_id_from_file_name
+#
+# Extract the utterance id for each file name on std in.
+#
+# Input file names must be of the form
+#
+# <DIR>/<FOO>_<UID>.<EXT>
+#
+# <UID> is printed for each line to std out.
+{
+    awk '
+          BEGIN { FS = "_" }
+          { print $NF }
+        ' \
+        | cut --delimiter='.' -f 1
+}
+
+
+function filter_mlf_by_utterance_IDs
+#
+# extract only the relevant utterances from the big mlf files
+{
+cat $1 | while read line
+do
+  sed -n "/$line/,/^\./p" $2
+done
+}
+
+## the main script
+sourceFile=${MCWSJAVMLF}
+targetDir=${WSJLIB}/wlabs/mcwsjav
+targetFile=${targetDir}/MC_WSJ_AV.mlf
+rm -f ${targetDir}/*.mlf
+mkdir -p ${targetDir}
+
+
+# prepare one big mlf for all files
+print_msg "Preparing transcription for all utterances!"
+# 1. get relevant utterance IDs
+#cat ${WSJLIB}/flists/mcwsjav/audio*.lst \
+cat ${WORKPATH}/taskFiles/1ch/RealData* \
+| extract_utterance_id_from_file_name \
+| sort -u \
+> ${targetDir}/utteranceIDs.txt
+
+# 2. filter the mlf to output only the relevant ones; speeds up calculation of word errors
+filter_mlf_by_utterance_IDs ${targetDir}/utteranceIDs.txt ${sourceFile} >> ${targetDir}/tmp.mlf
+
+# 3. correct some minor transcription errors 
+echo '#!MLF!#' > ${targetFile}
+correct_MLF ${targetDir}/tmp.mlf >> ${targetFile}
+
+# rm -f ${targetDir}/tmp.mlf 

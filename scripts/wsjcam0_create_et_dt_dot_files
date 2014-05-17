@@ -1,0 +1,75 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+# Test bench for tools/bash/generate_si_et5_dot
+
+. printlib
+
+print_header "$0"
+
+print_subsec 'Configuration'
+# Configure paths by editing LOCAL_CONFIG, then load it.
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+     print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsub "Generating dot files for creation\n" \
+             "of si_et_1, si_et_2 and si_dt audio file lists\n" \
+             "and MLFs"
+
+# Write list of dot files to std out.
+# $1: si_et_1 or si_et_2
+function list_dotfiles
+{
+    local sub_set="$1"
+    find ${WSJCAM0} -type f -name '*.dot' \
+        | grep $sub_set'/[a-z0-9]\{3\}/[a-z0-9]\{3\}c02[a-z0-9]\{2\}\.dot$'
+}
+
+function list_all_dotfiles
+{
+    find ${WSJCAM0} -type f -name '*.dot' \
+        | grep 'si_[ed]t[_]*[12]*/[a-z0-9]\{3\}/[a-z0-9]\{3\}c02[a-z0-9]\{2\}\.dot$'
+}
+
+
+pushd . > /dev/null
+
+mkdir -p ${WSJLIB}/dots
+rm -f ${WSJLIB}/dots/si_et_1.dot
+rm -f ${WSJLIB}/dots/si_et_2.dot
+rm -f ${WSJLIB}/dots/si_dt.dot
+
+list_dotfiles si_et_1 \
+    | xargs cat \
+    > ${WSJLIB}/dots/si_et_1.dot
+
+list_dotfiles si_et_2 \
+    | xargs cat \
+    > ${WSJLIB}/dots/si_et_2.dot
+
+list_dotfiles si_dt \
+     | xargs cat \
+     > ${WSJLIB}/dots/si_dt.dot
+
+list_all_dotfiles \
+     | xargs cat \
+     > ${WSJLIB}/dots/si_test.dot
+
+
+popd > /dev/null

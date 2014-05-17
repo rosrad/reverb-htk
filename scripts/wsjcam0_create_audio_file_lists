@@ -1,0 +1,223 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+# Generate feature vectors from wave files.
+function clean_up
+{
+    for dataset in ${dataSetList[@]}; do
+        rm -rf $WSJLIB/wsjcam0_files
+	rm -f $WSJLIB/flists/${dataset}.lst
+	rm -f $WSJLIB/flists/audio_${dataset}.lst
+    done
+}
+
+function get_dotfile_audiofiledir
+#unction get_dotfile_audiofiledir $dataset
+#
+# Get paths to dot file and audio files corresponding to given data set.
+#
+# $dataset: The data set. Allowed values: Any in ${dataSetList[@]}.
+#
+# Return: Print the tuple '<DOTFILE>:<AUDIODIR>' to std out, where <DOTFILE> is
+# the path to the dot file corresponding to $dataset and <AUDIODIR> is the path
+# to the audio files corresponding to $dataset.
+{
+    local dataset=$1
+
+    local audiofiledir=""
+    local dotfile=""
+
+    case "$dataset" in
+        si_et_1 | si_et_2 )
+            # The dot file is created by wsjcam0_create_et_dt_dot_files.
+            dotfile=${WSJLIB}/dots/${dataset}.dot
+            # Find the si_et_1/2 directory: depending on the version of the
+            # database, this directory may be different, hence the 'find'.
+            audiofiledir=$(find ${WSJCAM0} -type d -name ${dataset})
+            ;;
+        si_dt )
+			# The dot file is created by wsjcam0_create_et_dt_dot_files.
+            dotfile=${WSJLIB}/dots/${dataset}.dot
+            local audiofiledirTMP=$(find ${WSJCAM0} -type d -name ${dataset})
+            # For both si_tr and si_dt there are two directories, one for
+            # primary_microphone and one for secondary_microphone; determine
+            # which to use by looking for the file extension of the audio files.
+            for probeDir in ${audiofiledirTMP[@]}; do
+                local nFiles=$(find ${probeDir} \
+                    -type f \
+                    -name  *.${audioFileExtension} \
+                    | wc -l)
+                if [ $nFiles  != 0 ]; then
+                    # print_msg "Found files with extension"
+                    # print_msg "${audioFileExtension} in directory"
+                    # print_msg "${probeDir}!"
+                    audiofiledir=${probeDir}
+                    break
+                fi
+            done
+            ;;
+        * )
+            local baseDataSet=${dataset:0:5}
+            dotfile=${WSJCAM0}/data/${micType}/etc/${dataset}.dot
+            local audiofiledirTMP=$(find ${WSJCAM0} -type d -name ${baseDataSet})
+            # For both si_tr and si_dt there are two directories, one for
+            # primary_microphone and one for secondary_microphone; determine
+            # which to use by looking for the file extension of the audio files.
+            for probeDir in ${audiofiledirTMP[@]}; do
+                local nFiles=$(find ${probeDir} \
+                    -type f \
+                    -name  *.${audioFileExtension} \
+                    | wc -l)
+                if [ $nFiles  != 0 ]; then
+                    # print_msg "Found files with extension"
+                    # print_msg "${audioFileExtension} in directory"
+                    # print_msg "${probeDir}!"
+                    audiofiledir=${probeDir}
+                    break
+                fi
+            done
+            ;;
+    esac
+
+    echo $dotfile:$audiofiledir
+}
+
+function get_utterance_ids
+#unction get_utterance_ids $dotfile
+#
+# Print the utterance ids found in the dot file $dotfile to stdout.
+#
+# $dotfile: Path to dot file.
+{
+    local dotfile="$1"
+    grep -o '(c[a-z,0-9]*)' "$dotfile" \
+        | sed -e 's;^(;;g' \
+              -e 's;)$;;g' 
+}
+
+
+function get_audio_files
+#unction get_audio_files $utterance_ids $audiofiledir $audioFileExtension
+#
+# Print list of paths of audio files which match a given list of utterance ids.
+#
+# $utterance_ids: File containing utterance ids. One id per line.
+# $audiofiledir: Path to audio files. Will be recursively scanned for audio
+#                files.
+# $audioFileExtension: Files with this extension are interpreted as audio files.
+#
+# The directory $audiofiledir is recursively scanned for audio files. Each audio
+# file name has the form <UID>.<EXT>, where <UID> is the utterance id and <EXT>
+# is the extension. Only the names of those audio files are printed to stdout,
+# whose utterance id exists in $utterance_ids.
+{
+    local utterance_ids="$1"
+    local audiofiledir="$2"
+    local audioFileExtension="$3"
+
+    join \
+        <(sort "$utterance_ids") \
+        <(find "$audiofiledir" -type f -name '*.'$audioFileExtension \
+              | awk 'BEGIN { FS = "/" } ;
+                  {
+                     filename=$NF;
+                     n=split(filename,UID_EXT,".");
+                     print UID_EXT[1] " " $0
+                  }' \
+              | sort) \
+        | cut --delimiter=' ' --fields=2
+}
+
+print_subsec "Configuration"
+
+# Configure paths by editing LOCAL_CONFIG, then load it.
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsub 'Creating audio file lists for the WSJCAM0 database'
+pushd . > /dev/null
+
+# specify the microphone used for training/testing
+# either: primary_microphone or secondary_microphone
+# For the REVERB challenge we use primary_microphone
+micType=primary_microphone
+
+# the naming convention is: primary_microphone --> file extension wv1
+#                           secondary_microphone --> file extension wv2
+case "${micType}" in
+    primary_microphone )
+        audioFileExtension=wv1 ;;
+    secondary_microphone )
+        audioFileExtension=wv2 ;;
+    * )
+        echo "Error: Unkown microphone!"\
+            "Chose either 'primary_microphone' or 'secondary_microphone'!"
+        exit -1 ;;
+esac
+
+
+# specify list of sets to be processes
+dataSetList="si_tr
+       si_dt5a
+       si_dt5b
+       si_et_1
+       si_et_2"
+
+#clean up before proceeding
+clean_up
+
+mkdir -p $WSJLIB/flists
+mkdir -p $WSJLIB/wsjcam0_files
+
+# Get the list of training, dev and test data from the provided dot files.
+for dataset in ${dataSetList[@]}; do
+  print_subsub "Processing subset \"${dataset}\""
+
+  _retval="$(get_dotfile_audiofiledir $dataset)"
+  dotfile="$(echo "$_retval" | cut -d ':' -f 1)"
+  audiofiledir="$(echo "$_retval" | cut -d ':' -f 2)"
+
+  if [ -z "${audiofiledir}" ]; then
+      print_msg "Failed to set directory keeping files with extension ${audioFileExtension}!\n Skipping ${dataset}!"
+      continue
+  else
+      print_msg "Setting directory keeping files with extension ${audioFileExtension} for ${dataset} to\n ${audiofiledir}!"
+  fi
+
+  print_subsec "Infere list of utterance ids"
+  filelist=${WSJLIB}/wsjcam0_files/${dataset}.lst
+  print_msg "   - OUTPUT: ${filelist}"
+  # Get the file names from the dot file in the database.
+  get_utterance_ids "${dotfile}" \
+      > ${filelist}
+
+  # get the list of audio files
+  get_audio_files \
+      "${filelist}" \
+      "${audiofiledir}" \
+      "${audioFileExtension}" \
+      >  ${WSJLIB}/flists/audio_${dataset}.lst
+done
+
+rm -rf $WSJLIB/wsjcam0_files
+popd > /dev/null

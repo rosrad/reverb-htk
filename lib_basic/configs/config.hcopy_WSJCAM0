@@ -1,0 +1,5 @@
+# WSJCAM0 coding parameters
+SOURCEKIND = WAVEFORM
+SOURCEFORMAT = NIST
+# NIST w_decode input filter
+HWAVEFILTER = 'w_decode -f -o short_10 $ -'

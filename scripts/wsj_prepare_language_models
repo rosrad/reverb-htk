@@ -1,0 +1,75 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec 'Configuration'
+#Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+print_subsec 'Prepare Language Models'
+
+# use command substitution to ensure just one file to be used;
+# i.e., if multiple return values, just the first is used
+LMFILE=($(find "${LMPATH}" -name bcb05cnp.z))
+WLFILE=($(find "${WSJCAM0}" -name wlist5c.nvp))
+
+if [ ! -f "$LMFILE" ]; then
+    print_msg "No language model found in ${LMPATH}"
+    exit 1
+fi
+
+if [ ! -f "${WLFILE}" ]; then
+    print_msg "No word list found in WSJCAM0=$WSJCAM0"
+    exit 1
+fi
+
+function clean_up
+{
+    rm -f $WSJLIB/nets/bcb05cnp.lm
+    rm -f $WSJLIB/wlists/5cnvp.wlist
+    rm -f $WSJLIB/nets/5cnvp.net
+}
+
+clean_up
+
+# Run mapsym to correct mistakes in LM and wlist
+print_msg 'Fixing language model...'
+mapsym <(zcat "$LMFILE") \
+    > $WSJLIB/nets/bcb05cnp.lm
+
+print_msg 'Fixing wordlist...'
+mapsym -e "$WLFILE" \
+    | grep -v '#' \
+    | sort \
+    > $WSJLIB/wlists/5cnvp.wlist
+
+print_msg 'Building network lattice'
+HBuild \
+    -A -D -T 41 \
+    -C ${CONFIG_BUILD} \
+    -s !SENT_START !SENT_END \
+    -u !UNKNOWN \
+    -z \
+    -n $WSJLIB/nets/bcb05cnp.lm \
+    $WSJLIB/wlists/5cnvp.wlist \
+    $WSJLIB/nets/5cnvp.net

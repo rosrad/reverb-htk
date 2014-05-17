@@ -1,0 +1,292 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+# check for existing file and exit if file is missing; 
+# preventing screen from being flooded by error messages
+function stop_on_missing_file
+{
+  if [ ! -f $1 ]; then
+    print_msg "Cannot find $1! Aborting"
+    exit 1
+  fi
+}
+
+print_subsec 'Configuration'
+# Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+pushd . > /dev/null
+print_subsec "W2: Word internal triphones"
+
+print_subsub "Clone monophone hmms to triphone"
+# specify train list; can be changed later on
+trainList=$WSJLIB/flists/si_tr.scp
+if [ ! -f ${trainList} ]; then
+  cp $WSJLIB/flists/si_tr.lst $trainList 
+fi
+
+
+mkdir -p $WSJLIB/edfiles
+
+cd $WSJLIB/mlabs
+
+# define inter word labels
+echo 'WB sp' > mktriwint.led
+echo 'WB sil' >> mktriwint.led
+# convert all phoneme labels to Triphones
+echo 'TC ' >> mktriwint.led
+
+# Prepare the triphone transcription of the training set and the list
+# of triphones occured in the training set. ( its not the full list !)
+# -n fn : the list of all new label names created will be output to file fn
+# -i mlf: This specifies that the output transcriptions are written to
+#         the master label file mlf.
+# mktriwint.led : the edit script file
+# si_tr_mono.mlf:
+HLEd \
+    -A -D -T 1 \
+    -l '*' \
+    -n $WSJLIB/mlists/si_wint.list \
+    -i si_tr_wint.mlf \
+    mktriwint.led \
+    si_tr_mono.mlf \
+    > mktriwint.log
+
+# The directories are removed if they already exist.
+if [ -d $WSJCAM0HMMS/W2 ]; then
+   print_msg "Removing the old data..."
+  rm -r $WSJCAM0HMMS/W2
+fi
+mkdir -p $WSJCAM0HMMS/W2
+
+print_msg "Directory  $WSJCAM0HMMS/W2 created"
+cd $WSJCAM0HMMS/W2
+
+# generate the mktrihed script which does the cloning:
+# maketrihed script from HTKTutorial
+maketrihed $WSJLIB/mlists/mono0.list $WSJLIB/mlists/si_wint.list
+
+if [ -d hmm0 ]; then
+  rm -r hmm0
+fi
+mkdir -p hmm0
+# clone the monophone to triphone and put the results in W2/hmm0
+HHEd \
+    -A -D -T 1 \
+    -H $WSJCAM0HMMS/W1/hmm4/MMF \
+    -M hmm0 \
+    mktri.hed \
+    $WSJLIB/mlists/mono1.list \
+    | tee hmm0/mktriwint.log
+
+#check
+stop_on_missing_file hmm0/MMF
+
+print_subsub 'Train wint triphones (x2)'
+if [ -d hmm1 ]; then
+  rm -r hmm1
+fi
+if [ -d hmm2 ]; then
+  rm -r hmm2
+fi
+
+for i in 1 2
+do
+    mkdir hmm$i
+    parallelHTK $NBPROC HERest \
+	-A -D -T 1 \
+	-c 15.0 \
+	-m 0 \
+	-w 2.0 \
+	-t 250.0 150.0 1000.0 \
+	-H $WSJCAM0HMMS/W2/hmm$((i-1))/MMF \
+	-M $WSJCAM0HMMS/W2/hmm$i \
+	-I $WSJLIB/mlabs/si_tr_wint.mlf \
+	-s $WSJCAM0HMMS/W2/hmm$i/stats \
+	-C ${CONFIG_HEREST} \
+	-S ${trainList} \
+	$WSJLIB/mlists/si_wint.list
+    #check
+    stop_on_missing_file hmm$i/MMF
+done
+
+print_subsub 'Generate full hmm list'
+
+cd $WSJLIB/mlists
+
+# since HDMan can only cope with one boundary symbol (using sil),
+# remove all sp's from the dictionary, use TC command to split to wint triphones
+echo "DP sp" > mktri.ded
+echo "TC " >> mktri.ded
+
+#use HDMan on the monophone dictionary to create a full wint list
+HDMan \
+    -A -D -T 1 \
+    -m \
+    -b sil \
+    -n fullwint.list.tmp \
+    -g mktri.ded \
+    -l fullwint.list.log \
+    /dev/null \
+    $WSJLIB/dicts/mono.dict
+
+# HDMan has a bug in which it fails to cope with single phone words when
+# outputting triphones, for some reason I don't understand,
+# since it outputs the pronounciation ok.  To cope with this,
+# merge the output of the si_wint list with this one.
+cat fullwint.list.tmp si_wint.list \
+    | sort -u \
+    > fullwint.list
+
+print_subsub 'Tree clustered state tying'
+
+cd $WSJCAM0HMMS/W2
+
+echo "RO 200.0 $WSJCAM0HMMS/W2/hmm2/stats" > cluster.hed
+cat $WSJLIB/wsjquests.hed >> cluster.hed
+# mkclscript.prl script from HTKRM/perl_scripts
+# correct perl interpreter error
+sed -e 's/\r\n?/\n/' $(find ${HTKSamples} -name mkclscript.prl) > ${WSJTOOLS}/perl/mkclscript
+chmod u+x ${WSJTOOLS}/perl/mkclscript
+perl ${WSJTOOLS}/perl/mkclscript TB 500.0 $WSJLIB/mlists/mono0.list >> cluster.hed
+echo 'ST "trees"' >> cluster.hed
+echo "AU \"$WSJLIB/mlists/fullwint.list\"" >> cluster.hed
+echo "CO \"winttree.list\"" >> cluster.hed
+
+if [ -d hmm10 ]; then
+  rm -r hmm10
+fi
+mkdir -p hmm10
+HHEd \
+    -A -D -T 1 \
+    -H hmm2/MMF \
+    -w hmm10/MMF \
+    cluster.hed \
+    $WSJLIB/mlists/si_wint.list \
+    | tee  hmm10/cluster.log
+
+#check
+stop_on_missing_file hmm10/MMF
+
+print_subsub 'Train wint clustered triphones (x4)'
+
+if [ -d hmm11 ]; then
+  rm -r hmm11
+fi
+
+if [ -d hmm12 ]; then
+  rm -r hmm12
+fi
+
+if [ -d hmm13 ]; then
+  rm -r hmm13
+fi
+
+if [ -d hmm14 ]; then
+  rm -r hmm14
+fi
+
+for i in 11 12 13 14
+do
+    mkdir hmm$i
+    parallelHTK $NBPROC HERest \
+	-A -D -T 1 \
+        -c 15.0 \
+        -m 0 \
+        -w 2.0 \
+        -t 250.0 150.0 1000.0 \
+	-H $WSJCAM0HMMS/W2/hmm$((i-1))/MMF \
+	-M $WSJCAM0HMMS/W2/hmm$i \
+	-I $WSJLIB/mlabs/si_tr_wint.mlf \
+	-s $WSJCAM0HMMS/W2/hmm$i/stats \
+	-C ${CONFIG_HEREST} \
+	-S ${trainList} \
+	$WSJCAM0HMMS/W2/winttree.list
+    #check
+    stop_on_missing_file hmm$i/MMF
+done
+
+print_subsub 'Increase mixture components up to 10'
+
+OLDIFS=$IFS
+IFS=','
+for i in 1,2 2,4 4,6 6,8 8,10
+do
+    set $i
+
+    print_msg "---- ${1} -> ${2}"
+
+    # Create edfiles.
+    echo "MU ${2} {*.state[2-4].mix}" \
+	> $WSJLIB/edfiles/edfile${1}4.${2}0
+    echo "MU $(($2 * 2)) {(sp,sil).state[2-4].mix}" \
+	>> $WSJLIB/edfiles/edfile${1}4.${2}0
+
+    if [ -d hmm${2}0 ]; then
+        rm -r hmm${2}0
+    fi
+    mkdir -p hmm${2}0
+
+    HHEd -T 1 \
+	-D \
+	-A \
+	-H hmm${1}4/MMF \
+	-w hmm${2}0/MMF  \
+	$WSJLIB/edfiles/edfile${1}4.${2}0 \
+	winttree.list \
+	| tee hmm${2}0/mixsplit.log
+    # check 
+    stop_on_missing_file hmm${2}0/MMF
+
+    for j in 1 2 3 4
+    do
+	if [ -d hmm${2}$j ]; then
+	    rm -r hmm${2}$j
+	fi
+    done
+
+    for k in $(seq --separator="$IFS" ${2}1 ${2}4)
+    do
+	print_subsub "Re-estimation hmm$(($k - 1)) -> hmm$k "
+	mkdir hmm$k
+	parallelHTK $NBPROC HERest \
+	    -A -D -T 1 \
+	    -c 15.0 \
+	    -m 0 \
+	    -w 2.0 \
+	    -t 250.0 150.0 1000.0 \
+	    -C ${CONFIG_HEREST} \
+	    -H $WSJCAM0HMMS/W2/hmm$((k-1))/MMF \
+	    -I $WSJLIB/mlabs/si_tr_wint.mlf \
+	    -M $WSJCAM0HMMS/W2/hmm$k \
+	    -S ${trainList} \
+	    -s $WSJCAM0HMMS/W2/hmm$k/stats \
+	    $WSJCAM0HMMS/W2/winttree.list
+	# check 
+	stop_on_missing_file hmm$k/MMF
+    done
+done
+IFS=$OLDIFS
+
+popd > /dev/null

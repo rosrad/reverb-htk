@@ -1,0 +1,114 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+print_subsec "Local Configuration"
+# Configure paths by editing LOCAL_CONFIG, then run it
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+function clean_up
+{
+    for dataSet in $dataSetList; do
+	rm -f $WSJLIB/wlabs/${dataSet}.mlf.tmp
+	rm -f $WSJLIB/wlabs/${dataSet}.mlf
+    done
+}
+pushd . > /dev/null
+
+mkdir -p $WSJLIB/wlabs
+cd $WSJLIB/wlabs
+
+print_subsec "Prepare transcriptions"
+# specify list of datasets to be used
+dataSetList="si_tr
+       si_dt5a
+       si_dt5b
+       si_et_1
+       si_et_2"
+
+clean_up
+
+# specify the microphone used for training/testing
+# either: primary_microphone or secondary_microphone
+# For the REVERB challenge we use primary_microphone
+micType=primary_microphone
+
+# the naming convention is: mic1 --> file extension wv1
+#                           mic2 --> file extension wv2
+if [ "${micType}" = "primary_microphone" ]; then
+  export audioFileExtension=wv1
+elif [ "${micType}" = "secondary_microphone" ]; then
+  export audioFileExtension=wv2
+else
+  echo "Error: Unkown microphone! Chose either 'primary_microphone' or 'secondary_microphone'!"
+  exit -1
+fi
+
+for dataSet in $dataSetList; do
+  dotDir=""
+  if [[ "${dataSet}" = "si_et_1" ]] || [[ "${dataSet}" = "si_et_2" ]] ; then
+    # the directory for si_et_1/2 keep both data for primary_microphone and secondary_microphone
+    # find the si_et_1/2 directory: depending on the version of
+    # the database, this directory may be different
+    dotDir=`find ${WSJCAM0} -type d -name ${dataSet}`
+  else
+    # for both si_tr and si_dt there are two directories; one for primary_microphone
+    # and one for secondary_microphone; determine which to use by looking for 
+    # the file extension of the audio files
+    baseDataSet=${dataSet:0:5}
+    dotDirTMP=`find ${WSJCAM0} -type d -name ${baseDataSet}`
+    for probeDir in ${dotDirTMP[@]}; do
+      if [ `find ${probeDir} -type f -name  *.${audioFileExtension} | wc -l` = "0" ]; then
+	: # print_msg "- No files with extension ${audioFileExtension} in directory\n ${probeDir}!"
+      else
+	# print_msg "- Found files with extension ${audioFileExtension} in directory\n ${probeDir}!"
+	dotDir=${probeDir}
+	break
+      fi
+    done
+  fi
+  if [ -z "${dotDir}" ]; then
+    print_msg "Failed to set directory keeping dot files for ${dataSet}!\n Skipping!"
+    continue
+  else
+    print_msg "Setting directory keeping dot files for ${dataSet} to\n${dotDir}!"
+  fi
+
+  print_subsub "Processing ${dataSet}"
+  dot2mlf -d ${dotDir} $WSJLIB/flists/audio_${dataSet}.lst > $WSJLIB/wlabs/${dataSet}.mlf.tmp
+  mapsym $WSJLIB/wlabs/${dataSet}.mlf.tmp > $WSJLIB/wlabs/${dataSet}.mlf
+  if [[ ! -s $WSJLIB/wlabs/${dataSet}.mlf ]]; then
+    exit 1
+  fi
+  rm -f $WSJLIB/wlabs/${dataSet}.mlf.tmp
+done
+
+# join the si_dt5a and si_dt5b
+cat ${WSJLIB}/wlabs/si_dt5a.mlf > ${WSJLIB}/wlabs/si_dt.mlf
+sed '1d' ${WSJLIB}/wlabs/si_dt5b.mlf  >> ${WSJLIB}/wlabs/si_dt.mlf
+
+# join the si_et_1 and si_et_2
+cat ${WSJLIB}/wlabs/si_et_1.mlf > ${WSJLIB}/wlabs/si_et.mlf
+sed '1d' ${WSJLIB}/wlabs/si_et_2.mlf  >> ${WSJLIB}/wlabs/si_et.mlf
+
+popd > /dev/null
