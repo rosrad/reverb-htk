@@ -90,7 +90,11 @@ function stop_on_missing_file
 if [ -e $WSJCAM0HMMS/W1 ]; then
   echo "The current working directory $WSJCAM0HMMS/W1 already exists!"
   echo "If you decide to proceed, all its content will be removed!"
-  read -p "Continue? (Y/N)? " REPLY
+  if  [ $FORCE == 1 ]; then
+       REPLY="Y"
+  else
+      read -p "Continue? (Y/N)? " REPLY
+  fi      
   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
     echo "Continuing!"
   else

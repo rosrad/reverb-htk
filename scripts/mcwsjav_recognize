@@ -50,8 +50,12 @@ if [[ -d ${MCWSJAVRESULTS} ]]; then
 	     "${MCWSJAVRESULTS}\n" \
 	     "already exists!\n " \
 	     "If you decide to proceed, its content will possibly be overwritten!"
-   read -p "Continue? (Y/N)? " REPLY
-   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]] || [[$FORCE == 1 ]]; then
+   if  [ $FORCE == 1 ]; then
+       REPLY="Y"
+   else
+       read -p "Continue? (Y/N)? " REPLY
+   fi
+if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
    else
      print_msg "Exiting!"
