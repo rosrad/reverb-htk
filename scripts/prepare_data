@@ -59,14 +59,12 @@ else
 	     "${WSJLIB}\n"
   mkdir -p ${WSJLIB}
 fi
-
 # copy the important parts of the basic lib
 cp  -r lib_basic/configs ${WSJLIB}/.
 cp  lib_basic/wsjquests.hed ${WSJLIB}/wsjquests.hed
 
 # back up the LOCAL_CONFIG to the current folder
 cp LOCAL_CONFIG ${WSJLIB}/LOCAL_CONFIG.bak
-
 
 #-----------------------------------------------------------
 # 2. prepare transcription, dictionaries, language models...
