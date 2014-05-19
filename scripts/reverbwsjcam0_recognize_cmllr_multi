@@ -140,8 +140,8 @@ fi
 
 
 # List of recognition tasks
-#tasks="cln near far"
-tasks="cln"
+tasks="cln near far"
+#tasks="cln"
 
 # List of test sets
 testSets=$TASKSET #"dt et"
