@@ -70,7 +70,7 @@ export featureFileExtension=mfc
 
 # Set the number of processes to be used for parallelHTK.
 # (OPTIONAL)
-export NBPROC=1
+export NBPROC=16
 
 ########################################################################
 # You should modify the paths below, where ${HOME} should be replaced with
