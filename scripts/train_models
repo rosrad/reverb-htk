@@ -31,31 +31,13 @@ cd $WORKPATH
 startTime=`date`
 
 #-------------------------------------
-# 1. clean mfcc convert
-#-------------------------------------
-
-
-# DO NOT CHANGE THIS ORDER
-clean_mfccInOrder=( \
-  wsjcam0_code_data \
-)
-
-for script in ${clean_mfccInOrder[@]}
-do
-  # execute script and write to log file
-  print_msg "Executing ${script}"
-  date > logs/${script}.log
-  bash scripts/${script}  2>&1 | tee -a logs/${script}.log
-  date >> logs/${script}.log
-done
-
-#-------------------------------------
-# 2. Training for clean acoustic model
+# 1. Training for clean acoustic model
 #-------------------------------------
 
 
 # DO NOT CHANGE THIS ORDER
 trainScriptsInOrder=( \
+  wsjcam0_code_data \
   wsj_train_monophones \
   wsj_train_triphones \
 )
@@ -70,29 +52,11 @@ do
 done
 
 #------------------------------------------------------
-# 3. mctrain mfcc convert
-#------------------------------------------------------
-
-mctrain_mfccReverbWSJ=(\
-    reverbwsjcam0_code_data_training\
-)
-for script in ${mctrain_mfccReverbWSJ[@]}
-do
-  # execute script and write to log file
-  print_msg "Executing ${script}"
-  date > logs/${script}.log
-  bash scripts/${script}  2>&1 | tee -a logs/${script}.log
-  date >> logs/${script}.log
-done
-
-echo "mctrain output ready" 
-read Wait
- 
-#------------------------------------------------------
-# 4. Re-training for for multi-condition acoustic model
+# 2. Re-training for for multi-condition acoustic model
 #------------------------------------------------------
 
 trainScriptsForReverbWSJ=(\
+    reverbwsjcam0_code_data_training\
     reverbwsjcam0_retrain\	
 )
 for script in ${trainScriptsForReverbWSJ[@]}

@@ -47,7 +47,6 @@ flistDir=${WSJLIB}/flists/reverbWSJcam0
 
 # List of recognition tasks
 tasks="cln near far"
-#tasks="cln"
 
 # List of test sets
 testSets=$TASKSET #"dt et"
@@ -100,7 +99,7 @@ do
   echo $task
   for testSet in $testSets;
   do
-    for ((setId=1;setId<=1;setId++))
+    for ((setId=1;setId<=3;setId++))
       do
       # assign list of files
       if [ "$task" = "cln" ]; then

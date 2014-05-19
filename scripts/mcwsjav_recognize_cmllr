@@ -46,8 +46,8 @@ fi
 refMLF=${WSJLIB}/wlabs/mcwsjav/MC_WSJ_AV.mlf
 
 # specify the training condition
-#trainCondition="multi_cond"
- trainCondition="clean"
+trainCondition="multi_cond"
+# trainCondition="clean"
 
 # Parameters for recognition
 beamPruningThreshold=250.0 
@@ -58,7 +58,8 @@ numberOfGaussians=
 wordEndPruningThreshold=200.0
 
 # parameters for adaptation
-NUMBEROFREGRESSIONCLASSES="32"
+NUMBEROFREGRESSIONCLASSES="256"
+OCCUPANCY="10000"
 
 # change the results folder
 if [ "${trainCondition}" = "multi_cond" ]; then
@@ -210,7 +211,7 @@ HADAPT:USEBIAS           = TRUE
 HADAPT:REGTREE           = rtree.tree
 HADAPT:ADAPTKIND         = TREE
 HADAPT:KEEPXFORMDISTINCT = TRUE
-HADAPT:SPLITTHRESH       = 1000.0
+HADAPT:SPLITTHRESH       = ${OCCUPANCY}
 
 HADAPT:TRACE = 61
 HMODEL:TRACE = 512
@@ -354,7 +355,7 @@ EOF
 	-K $ADAPTATIONDIR cmllr2 \
 	-S $featureFilesList \
 	-C $WSJLIB/configs/config.herest \
-	-C $ADAPTATIONDIR/config.cmllr_global \
+	-C $ADAPTATIONDIR/config.cmllr_rc \
 	-X rec \
 	$HMMLIST
 

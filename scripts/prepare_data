@@ -50,6 +50,7 @@ if [[ -d ${WSJLIB} ]]; then
      print_msg "Placing a backup at ${WSJLIB}_${backupTimeStamp} directory!" \
 	     "${WSJLIB}\n"
      mv ${WSJLIB} ${WSJLIB}_${backupTimeStamp}
+     mkdir -p ${WSJLIB}
    else
      print_msg "Exiting!"
      exit 1
@@ -59,12 +60,14 @@ else
 	     "${WSJLIB}\n"
   mkdir -p ${WSJLIB}
 fi
+
 # copy the important parts of the basic lib
 cp  -r lib_basic/configs ${WSJLIB}/.
 cp  lib_basic/wsjquests.hed ${WSJLIB}/wsjquests.hed
 
 # back up the LOCAL_CONFIG to the current folder
 cp LOCAL_CONFIG ${WSJLIB}/LOCAL_CONFIG.bak
+
 
 #-----------------------------------------------------------
 # 2. prepare transcription, dictionaries, language models...

@@ -55,7 +55,7 @@ do
   for theset in ${setList[@]}
   do
     # List of subsets
-    subsets=("1")
+    subsets=("1" "2" "3")
     tasks=("cln")
     
     set_name=${dataSet}_$theset
@@ -68,39 +68,39 @@ do
       bash print_results ${resultsDirREVERBWSJcam0}_cmllr $set_name ${#tasks[@]} ${#subsets[@]}  ${tasks[@]} ${subsets[@]}
     fi
     # Results for near and far
-    #subsets=("1_A" "2_A" "3_A")
-    #tasks=("1ch_near"
-#	  "1ch_far")
-#    if [ -d ${resultsDirREVERBWSJcam0} ]; then
-#      print_msg "# $set_name (w/o CMLLR)"
-#      bash print_results ${resultsDirREVERBWSJcam0} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
-#    fi
-#    if [ -d ${resultsDirREVERBWSJcam0_cmllr} ]; then
-#      print_msg "# $set_name (w/ CMLLR)"
-#      bash print_results ${resultsDirREVERBWSJcam0_cmllr} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
-#    fi
+    subsets=("1_A" "2_A" "3_A")
+    tasks=("1ch_near"
+	  "1ch_far")
+    if [ -d ${resultsDirREVERBWSJcam0} ]; then
+      print_msg "# $set_name (w/o CMLLR)"
+      bash print_results ${resultsDirREVERBWSJcam0} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+    fi
+    if [ -d ${resultsDirREVERBWSJcam0_cmllr} ]; then
+      print_msg "# $set_name (w/ CMLLR)"
+      bash print_results ${resultsDirREVERBWSJcam0_cmllr} $set_name  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+    fi
   done
 
 #  #################
 #  Results for MCWSJ (RealData)
 #  ################# 
 
-#  dataSet=RealData
-#  subsets=("1_A")
-#  tasks=("1ch_near"
-#	  "1ch_far")
-#  for theset in ${setList[@]}
-#  do
-#    set_name=${dataSet}_$theset
-#    if [ -d ${resultsDirMCWSJAV} ]; then
-#	print_msg "# $set_name (w/o CMLLR)"
-#	bash print_results ${resultsDirMCWSJAV} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
-#    fi
-#    if [ -d ${resultsDirMCWSJAV_cmllr} ]; then
-#	print_msg "# $set_name (w/ CMLLR)"
-#	bash print_results ${resultsDirMCWSJAV_cmllr} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
-#    fi
-#  done
+  dataSet=RealData
+  subsets=("1_A")
+  tasks=("1ch_near"
+	  "1ch_far")
+  for theset in ${setList[@]}
+  do
+    set_name=${dataSet}_$theset
+    if [ -d ${resultsDirMCWSJAV} ]; then
+	print_msg "# $set_name (w/o CMLLR)"
+	bash print_results ${resultsDirMCWSJAV} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+    fi
+    if [ -d ${resultsDirMCWSJAV_cmllr} ]; then
+	print_msg "# $set_name (w/ CMLLR)"
+	bash print_results ${resultsDirMCWSJAV_cmllr} ${set_name}  ${#tasks[@]} ${#subsets[@]} ${tasks[@]} ${subsets[@]}
+    fi
+  done
 done
 exit
 
