@@ -1,0 +1,63 @@
+#!/bin/bash -e
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+. printlib
+
+print_header "$0"
+
+if [ -e LOCAL_CONFIG ] ; then
+    . LOCAL_CONFIG
+else
+    print_msg 'Copy LOCAL_CONFIG.template to LOCAL_CONFIG and adapt paths as needed.'
+    exit 1
+fi
+
+
+if  [ $FORCE == 1 ]; then
+       REPLY="Y"
+else
+    read -p "Ensure your LOCAL_CONFIG is up to data! Is your LOCAL_CONFIG up to date? (Y/N)? " REPLY
+fi
+
+
+if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
+  print_msg "Continuing!"
+else
+  print_msg "Exiting!"
+  exit 1
+fi
+
+startTime=`date`
+
+mkdir -p logs
+
+# Prepare data (this must be run once)
+bash scripts/prepare_data
+
+# Train acoustic clean and multi-condition models
+# (The baseline acoustic models are provided.
+# This script must be run if you want to retrain the acoustic 
+# models e.g, if you want to change  features...)
+#bash scripts/train_models
+
+# Recognize and summarize the results
+bash scripts/recognize_and_evaluate
+
+endTime=`date`
+
+print_msg "Start: $startTime\n End: $endTime"
+
+SendMail summarize_results.log
+exit

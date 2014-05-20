@@ -1,0 +1,55 @@
+
+####################################################################################### 
+#              REVERB  CHALLENGE -  automatic speech recognition                      # 
+#                                                                                     # 
+# scripts and tools written by:                                                       # 
+# - Volker Leutnant,                                                                  # 
+# - Marc Puels,                                                                       # 
+# - Reinhold Haeb-Umbach                                                              # 
+#                                                                                     # 
+# Department of Communications Engineering, University of Paderborn, Germany          # 
+#                                                                                     # 
+# support: reverb-asr@lab.ntt.co.jp                                                   #
+#######################################################################################
+
+# Variables and functions for formatted printing of messages.
+
+_HBAR_="################################################################################"
+HBAR="================================================================================"
+hbar="--------------------------------------------------------------------------------"
+
+# $@: Text to print.
+function print_header
+{
+    echo
+    echo "$_HBAR_"
+    echo -e "$@"
+    echo "$_HBAR_"
+    echo
+}
+
+# $@: Text to print.
+function print_subsub
+{
+    echo
+    echo $HBAR
+    echo -e "$@"
+    echo $HBAR
+    echo
+}
+
+# $@: Text to print.
+function print_subsec
+{
+    echo
+    echo $hbar
+    echo -e "$@"
+    echo $hbar
+    echo
+}
+
+# $@: Text to print.
+function print_msg
+{
+    echo -e "$@"
+}
