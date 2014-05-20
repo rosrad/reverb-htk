@@ -65,10 +65,10 @@ do
       exit 1
     fi
     # check
-    #if [ ! -e "${DBBASE}/audio" ]; then
-     # print_msg "Unknow database structure! Check installation for task $task!"
-     # exit 1
-    #fi
+    if [ ! -e "${DBBASE}/audio" ]; then
+      print_msg "Unknow database structure! Check installation for task $task!"
+      exit 1
+    fi
     print_msg $testSet
     taskName=RealData_${testSet}_for_1ch_${task}_room1_A
     
