@@ -2,6 +2,7 @@ MCWSJAV/
 REVERB
 REVERBWSJCAM0/
 WSJCAM0/
+lib_MFCC*/
 doc/
 logs/
 models/

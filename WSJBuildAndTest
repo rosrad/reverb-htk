@@ -59,5 +59,6 @@ endTime=`date`
 
 print_msg "Start: $startTime\n End: $endTime"
 
-SendMail summarize_results.log
+. ~/.base_env.sh
+SendMail.sh logs/summarize_results.log
 exit
