@@ -54,7 +54,8 @@ mkdir -p $REVERBWSJFEATURES
 # Feature extraction for the test data
 
 # List of recognition tasks
-tasks="cln near far"
+#tasks="cln near far"
+tasks="cln"
 
 # List of test sets
 testSets=$TASKSET #"dt et"
@@ -73,7 +74,7 @@ do
     fi
     print_msg $testSet
 
-    for ((setId=1;setId<=3;setId++))
+    for ((setId=1;setId<=1;setId++))
       do
       if [ "$task" = "cln" ]; then
 	  taskName=SimData_${testSet}_for_${task}_room${setId}

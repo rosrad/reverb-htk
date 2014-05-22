@@ -42,8 +42,8 @@ fi
 # cd $tmpDir
 
 # specify the training condition
-#trainCondition="multi_cond"
-trainCondition="clean"
+trainCondition="multi_cond"
+#trainCondition="clean"
 
 # Parameters for recognition
 beamPruningThreshold=250.0 
@@ -54,8 +54,7 @@ numberOfGaussians=
 wordEndPruningThreshold=200.0
 
 # parameters for adaptation
-NUMBEROFREGRESSIONCLASSES="256"
-OCCUPANCY="10000"
+NUMBEROFREGRESSIONCLASSES="32"
 
 # change the results folder
 if [ "${trainCondition}" = "multi_cond" ]; then
@@ -78,11 +77,7 @@ if [[ -d ${RESULTSDIR_CMLLR} ]]; then
 	     "${RESULTSDIR_CMLLR}\n" \
 	     "already exists!\n " \
 	     "If you decide to proceed, its content will possibly be overwritten!"
-   if  [ $FORCE == 1 ]; then
-       REPLY="Y"
-   else
-       read -p "Continue? (Y/N)? " REPLY
-   fi       
+   read -p "Continue? (Y/N)? " REPLY
    if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
      print_msg "Placing a backup at: ${RESULTSDIR_CMLLR}_${backupTimeStamp} !"
@@ -142,7 +137,7 @@ fi
 
 # List of recognition tasks
 #tasks="cln near far"
-tasks="near far"
+tasks="cln"
 
 # List of test sets
 testSets=$TASKSET #"dt et"
@@ -151,7 +146,7 @@ for task in $tasks;
 do
   for testSet in $testSets; 
   do
-    for ((setId=1;setId<=3;setId++))
+    for ((setId=1;setId<=1;setId++))
     do
       print_msg "Performing speaker independent CMLLR adaptation for task <$task>, test set <$testSet> and room <${setId}>!"
 
@@ -215,7 +210,7 @@ HADAPT:USEBIAS           = TRUE
 HADAPT:REGTREE           = rtree.tree
 HADAPT:ADAPTKIND         = TREE
 HADAPT:KEEPXFORMDISTINCT = TRUE
-HADAPT:SPLITTHRESH       = ${OCCUPANCY}
+HADAPT:SPLITTHRESH       = 1000.0
 
 HADAPT:TRACE = 61
 HMODEL:TRACE = 512
@@ -360,7 +355,7 @@ EOF
 	  -K $ADAPTATIONDIR cmllr2 \
 	  -S $featureFilesList \
 	  -C $WSJLIB/configs/config.herest \
-	  -C $ADAPTATIONDIR/config.cmllr_rc \
+	  -C $ADAPTATIONDIR/config.cmllr_global \
 	  -X rec \
 	  $HMMLIST
 
