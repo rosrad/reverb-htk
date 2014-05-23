@@ -41,7 +41,7 @@ fi
 
 startTime=`date`
 
-mkdir -p logs
+mkdir -p ${WSJLOGS}
 
 # Prepare data (this must be run once)
 bash scripts/prepare_data
@@ -60,5 +60,5 @@ endTime=`date`
 print_msg "Start: $startTime\n End: $endTime"
 
 . ~/.base_env.sh
-SendMail.sh logs/summarize_results.log
+SendMail.sh ${WSJLOGS}/summarize_results.log
 exit

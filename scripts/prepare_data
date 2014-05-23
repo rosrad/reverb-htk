@@ -88,9 +88,9 @@ for script in ${trainScriptsInOrder[@]}
 do
   # execute script and write to log file
   print_msg "Executing ${script}"
-  date > logs/${script}.log
-  bash scripts/${script}  2>&1 | tee -a logs/${script}.log
-  date >> logs/${script}.log
+  date > ${WSJLOGS}/${script}.log
+  bash scripts/${script}  2>&1 | tee -a ${WSJLOGS}/${script}.log
+  date >> ${WSJLOGS}/${script}.log
 done
 
 endTime=`date`
