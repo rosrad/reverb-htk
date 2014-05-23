@@ -81,6 +81,9 @@ export NBPROC=16
 export BASE=/CDShare/Corpus/REVERB/
 export WSJCAM0=${BASE}/wsjcam0 
 
+export BASEWOKR=/home/14/ren/work/data/reverb_task/telephone/
+export BASESOURCE=${BASEWOKR}/source/
+export BASETMP=${BASEWOKR}/tmp/
 # Location of REVERB_WSJCAM0 database subsets.
 # A) Multi Condition Training Data
 # Please generate the multi condition training data using
@@ -91,7 +94,7 @@ export REVERB_WSJCAM0_TR=${BASE}/REVERB_WSJCAM0_tr
 # B) Development test.
 # (MANDATORY)
 #export REVERB_WSJCAM0_DT=/CDShare/Corpus/REVERB/REVERB_WSJCAM0_dt
-export REVERB_WSJCAM0_DT=/home/shizuokau/ueda/set13_dis_sl/iphone
+export REVERB_WSJCAM0_DT=${BASESOURCE}/set13/data/setA/iphone/
 
 # C) Evaluation test (to be released later on!).
 # (MANDATORY)
@@ -120,9 +123,9 @@ export MCWSJAVMLF=${MCWSJAV_DT}/mlf/WSJ.mlf
 # Specify the base directories where, later on, 
 # the features and the results will be found.
 # (OPTIONAL)
-WSJCAM0BASE=${WORKPATH}/WSJCAM0
-REVERBWSJBASE=${WORKPATH}/REVERBWSJCAM0
-MCWSJAVBASE=${WORKPATH}/MCWSJAV
+WSJCAM0BASE=${BASETMP}/WSJCAM0
+REVERBWSJBASE=${BASETMP}/REVERBWSJCAM0
+MCWSJAVBASE=${BASETMP}/MCWSJAV
 
 ########################################################################
 ################ NO CHANGE BELOW THIS LINE REQUIRED ####################
@@ -144,8 +147,11 @@ export MCWSJAVRESULTS_MC=$MCWSJAVBASE/results/${taskName}/multi_cond
 export WSJCAM0HMMS=${WORKPATH}/models/clean_cond/HMM/${taskName}
 export REVERBWSJHMMS=${WORKPATH}/models/multi_cond/HMM/${taskName}
 
+#logs file directory 
+export WSJLOGS=${BASETMP}/logs/
+
 # The lib directory.
-export WSJLIB=$WORKPATH/lib_${taskName}
+export WSJLIB=${BASETMP}/lib_${taskName}
 
 # The tools.
 export WSJTOOLS=$WORKPATH/tools
