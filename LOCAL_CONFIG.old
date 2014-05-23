@@ -1,3 +1,4 @@
+<<<<<<< variant A
 #!/bin/bash -e
 
 ####################################################################################### 
@@ -198,3 +199,5 @@ export CONFIG_HCOPY_WSJCAM0=${WSJLIB}/configs/config.hcopy_WSJCAM0
 # the additional hcopy configuration for the wav format the MCWSJAV data are give in
 export CONFIG_HCOPY_MCWSJAV=${WSJLIB}/configs/config.hcopy_MCWSJAV
 
+>>>>>>> variant B
+======= end
