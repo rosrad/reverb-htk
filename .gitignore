@@ -1,13 +1,5 @@
-MCWSJAV/
-REVERB
-REVERBWSJCAM0/
-WSJCAM0/
-lib_MFCC*/
 doc/
-logs/
 models/
 tools/
 README.txt
-generate_WS_train/
 mktriwint.led
-tmp/
