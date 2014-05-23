@@ -94,7 +94,7 @@ export REVERB_WSJCAM0_TR=${BASE}/REVERB_WSJCAM0_tr
 # B) Development test.
 # (MANDATORY)
 #export REVERB_WSJCAM0_DT=/CDShare/Corpus/REVERB/REVERB_WSJCAM0_dt
-export REVERB_WSJCAM0_DT=${BASESOURCE}/set13_dis/setA/iphone/
+export REVERB_WSJCAM0_DT=${BASESOURCE}/set13_dis_sl/iphone/
 
 # C) Evaluation test (to be released later on!).
 # (MANDATORY)
