@@ -62,7 +62,7 @@ testScriptsInOrder=( \
 #  mcwsjav_recognize_multicond \
 #  mcwsjav_recognize_cmllr_clean \
 #  mcwsjav_recognize_cmllr_multi \
-   \  
+  summarize_results
 )
 
 for script in ${testScriptsInOrder[@]}
