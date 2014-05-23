@@ -77,7 +77,11 @@ if [[ -d ${RESULTSDIR_CMLLR} ]]; then
 	     "${RESULTSDIR_CMLLR}\n" \
 	     "already exists!\n " \
 	     "If you decide to proceed, its content will possibly be overwritten!"
-   read -p "Continue? (Y/N)? " REPLY
+   if  [ $FORCE == 1 ]; then
+       REPLY="Y"
+   else
+       read -p "Continue? (Y/N)? " REPLY
+   fi
    if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
      print_msg "Placing a backup at: ${RESULTSDIR_CMLLR}_${backupTimeStamp} !"
