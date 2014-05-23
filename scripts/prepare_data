@@ -81,7 +81,7 @@ trainScriptsInOrder=( \
   wsj_prepare_monophone_dictionary \
   wsj_prepare_triphone_dictionary \
   wsj_prepare_language_models \
-  mcwsjav_prepare_transcriptions \
+  #mcwsjav_prepare_transcriptions \
 )
 
 for script in ${trainScriptsInOrder[@]}
