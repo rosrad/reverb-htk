@@ -53,12 +53,16 @@ mkdir -p ${WSJLOGS}
 #bash scripts/train_models
 
 # Recognize and summarize the results
-bash scripts/recognize_and_evaluate
+#bash scripts/recognize_and_evaluate
 
 endTime=`date`
 
 print_msg "Start: $startTime\n End: $endTime"
 
 . ~/.base_env.sh
-SendMail.sh ${WSJLOGS}/summarize_results.log
+mkdir -p ${WSJRES}
+echo "task dt ===> ${DT_TASK}"
+res_file=${WSJRES}/`echo ${DT_TASK} | sed -e 's#/#_#g'`=`date +%Y%m%d-%H:%M`.res
+cp  ${WSJLOGS}/summarize_results.log $res_file
+SendMail.sh $res_file
 exit
