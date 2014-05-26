@@ -44,7 +44,7 @@ startTime=`date`
 mkdir -p ${WSJLOGS}
 
 # Prepare data (this must be run once)
-#bash scripts/prepare_data
+bash scripts/prepare_data
 
 # Train acoustic clean and multi-condition models
 # (The baseline acoustic models are provided.
