@@ -74,7 +74,7 @@ do
     fi
     print_msg $testSet
 
-    for ((setId=1;setId<=1;setId++))
+    for ((setId=1;setId<=${SUBTASKS};setId++))
       do
       if [ "$task" = "cln" ]; then
 	  taskName=SimData_${testSet}_for_${task}_room${setId}

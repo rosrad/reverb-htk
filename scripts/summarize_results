@@ -55,7 +55,12 @@ do
   for theset in ${setList[@]}
   do
     # List of subsets
-    subsets=("1")
+    subsets=()
+    for ((setId=1;setId<=${SUBTASKS};setId++))
+    do
+	subsets+=("${setId}")
+    done
+    
     tasks=("cln")
     
     set_name=${dataSet}_$theset

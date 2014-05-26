@@ -154,7 +154,7 @@ for task in $tasks;
 do
   for testSet in $testSets; 
   do
-    for ((setId=1;setId<=1;setId++))
+    for ((setId=1;setId<=${SUBTASKS};setId++))
     do
       print_msg "Performing speaker independent CMLLR adaptation for task <$task>, test set <$testSet> and room <${setId}>!"
 

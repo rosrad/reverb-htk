@@ -42,6 +42,8 @@ export extractFeatures=true
 #       has to be run again!
 export TASKSET="dt" #"et" or "dt et" for evaluation
 
+export SUBTASKS=3
+
 # Specify the name of the current task to be able to
 # distinguish between configurations later on.
 # The taskName will automatically be appended to directory names.

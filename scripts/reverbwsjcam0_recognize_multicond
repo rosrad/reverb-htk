@@ -98,7 +98,7 @@ do
   echo $task
   for testSet in $testSets;
   do
-    for ((setId=1;setId<=1;setId++))
+    for ((setId=1;setId<=${SUBTASKS};setId++))
       do
       # assign list of files
       if [ "$task" = "cln" ]; then
