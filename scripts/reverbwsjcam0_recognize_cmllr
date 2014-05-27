@@ -86,14 +86,14 @@ if [[ -d ${RESULTSDIR_CMLLR} ]]; then
    if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
      print_msg "Placing a backup at: ${RESULTSDIR_CMLLR}_${backupTimeStamp} !"
-     cp -r ${RESULTSDIR_CMLLR} ${RESULTSDIR_CMLLR}_${backupTimeStamp}
+     mv ${RESULTSDIR_CMLLR} ${RESULTSDIR_CMLLR}_${backupTimeStamp}
    else
      print_msg "Exiting!"
      exit 1
    fi
-else
-  mkdir -p ${RESULTSDIR_CMLLR}
 fi
+
+mkdir -p ${RESULTSDIR_CMLLR}
 
 # check for existing results directory
 if [[ -d ${RESULTSDIR} ]]; then

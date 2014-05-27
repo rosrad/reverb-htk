@@ -86,34 +86,34 @@ if [[ -d ${RESULTSDIR_CMLLR} ]]; then
    if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
      print_msg "Placing a backup at: ${RESULTSDIR_CMLLR}_${backupTimeStamp} !"
-     cp -r ${RESULTSDIR_CMLLR} ${RESULTSDIR_CMLLR}_${backupTimeStamp}
+     mv ${RESULTSDIR_CMLLR} ${RESULTSDIR_CMLLR}_${backupTimeStamp}
    else
      print_msg "Exiting!"
      exit 1
    fi
-else
-  mkdir -p ${RESULTSDIR_CMLLR}
 fi
+
+mkdir -p ${RESULTSDIR_CMLLR}
 
 # check for existing results directory
 if [[ -d ${RESULTSDIR} ]]; then
    print_msg "The results directory\n" \
 	     "${RESULTSDIR}\n" \
 	     "already exists!" \
- 	     "If you decide to proceed, its content will possibly be overwritten!"
-   if  [ $FORCE == 1 ]; then
-       REPLY="Y"
-   else
-       read -p "Continue? (Y/N)? " REPLY
-   fi
-   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
-       print_msg "Continuing!"
-       print_msg "Placing a backup at: ${RESULTSDIR}_${backupTimeStamp} !"
-       cp -r ${RESULTSDIR} ${RESULTSDIR}_${backupTimeStamp}
-   else
-       print_msg "Exiting!"
-       exit 1
-   fi
+# 	     "If you decide to proceed, its content will possibly be overwritten!"
+#   if  [ $FORCE == 1 ]; then
+#       REPLY="Y"
+#   else
+#       read -p "Continue? (Y/N)? " REPLY
+#   fi
+#   if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
+#       print_msg "Continuing!"
+#       print_msg "Placing a backup at: ${RESULTSDIR}_${backupTimeStamp} !"
+#       cp -r ${RESULTSDIR} ${RESULTSDIR}_${backupTimeStamp}
+#   else
+#       print_msg "Exiting!"
+#       exit 1
+#   fi
 else
   mkdir -p ${RESULTSDIR}
 fi

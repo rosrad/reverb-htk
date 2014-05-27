@@ -52,6 +52,8 @@ tasks="cln"
 testSets=$TASKSET #"dt et"
 
 
+# some backup time stamp
+backupTimeStamp=`date +%y.%m.%d_%M.%s`
 # check for existing results dir
 if [[ -d ${REVERBWSJRESULTS} ]]; then
    print_msg "The results directory\n" \
@@ -65,13 +67,16 @@ if [[ -d ${REVERBWSJRESULTS} ]]; then
    fi       
    if [[ "$REPLY" = "Y" ]] || [[ "$REPLY" == "y" ]]; then
      print_msg "Continuing!"
+     print_msg "Placing a backup at: ${REVERBWSJRESULTS}_${backupTimeStamp} !"
+     mv ${REVERBWSJRESULTS} ${REVERBWSJRESULTS}_${backupTimeStamp}
    else
      print_msg "Exiting!"
      exit 1
    fi
-else
-  mkdir -p ${REVERBWSJRESULTS}
 fi
+
+mkdir -p ${REVERBWSJRESULTS}
+
 
 
 evalOnly=false
