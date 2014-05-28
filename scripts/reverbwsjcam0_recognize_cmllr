@@ -129,7 +129,7 @@ if [ "${trainCondition}" = "multi_cond" ]; then
   # the word internal triphone list after decision tree based clustering
   HMMLIST=${HMMBASE}/winttree.list
 else
-  HMMBASE=$WSJCAM0HMMS/W2
+  HMMBASE=$WSJCAM0HMMS/${WSJHMM_CUR}
   HMMDIR=hmm${numberOfGaussians}4
   # the master macro file
   MMF=${HMMBASE}/${HMMDIR}/MMF

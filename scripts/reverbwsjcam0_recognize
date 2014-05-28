@@ -94,9 +94,9 @@ LM=${WSJLIB}/nets/5cnvp.net
 # the monophone dictionary
 VOCAB=${WSJLIB}/dicts/5cnvpmono.dict
 # the word internal triphone list (after decision tree based clustering)
-HMMLIST=$WSJCAM0HMMS/W2/winttree.list
+HMMLIST=$WSJCAM0HMMS/${WSJHMM_CUR}/winttree.list
 # the master macro file
-MMF=$WSJCAM0HMMS/W2/hmm${numberOfGaussians}4/MMF
+MMF=$WSJCAM0HMMS/${WSJHMM_CUR}/hmm${numberOfGaussians}4/MMF
 
 
 for task in $tasks;
