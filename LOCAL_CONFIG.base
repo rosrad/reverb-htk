@@ -147,7 +147,7 @@ export MCWSJAVRESULTS=$MCWSJAVBASE/results/${taskName}/clean_cond
 export MCWSJAVRESULTS_MC=$MCWSJAVBASE/results/${taskName}/multi_cond
 
 # The directory where the HMMs can be found.
-export WSJHMM_CUR=W1
+export WSJHMM_CUR=W2
 export WSJCAM0HMMS=${WORKPATH}/models/clean_cond/HMM/${taskName}
 export REVERBWSJHMMS=${WORKPATH}/models/multi_cond/HMM/${taskName}
 

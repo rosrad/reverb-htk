@@ -36,8 +36,8 @@ startTime=`date`
 #----------------------
 
 testScriptsInOrder=( \
-  reverbwsjcam0_code_data_testing \ 
-  mcwsjav_code_data \
+  #reverbwsjcam0_code_data_testing \ 
+  #mcwsjav_code_data \
 )
 
 for script in ${testScriptsInOrder[@]}
@@ -58,10 +58,10 @@ testScriptsInOrder=( \
   reverbwsjcam0_recognize_multicond \
   reverbwsjcam0_recognize_cmllr_clean \ 
   reverbwsjcam0_recognize_cmllr_multi \ 
-  mcwsjav_recognize \
-  mcwsjav_recognize_multicond \
-  mcwsjav_recognize_cmllr_clean \
-  mcwsjav_recognize_cmllr_multi \
+  #mcwsjav_recognize \
+  #mcwsjav_recognize_multicond \
+  #mcwsjav_recognize_cmllr_clean \
+  #mcwsjav_recognize_cmllr_multi \
   summarize_results
 )
 
