@@ -50,9 +50,10 @@ mkdir -p ${WSJLOGS}
 # (The baseline acoustic models are provided.
 # This script must be run if you want to retrain the acoustic 
 # models e.g, if you want to change  features...)
-bash scripts/train_models
+#bash scripts/train_models
 
 # Recognize and summarize the results
+bash prepare_dt_feature.sh
 bash scripts/recognize_and_evaluate
 
 endTime=`date`
