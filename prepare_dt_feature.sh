@@ -15,11 +15,19 @@ fi
 # fi
 # extract features steps
 # for extract basic feature
+
+
+# remove the original nouseful data $REVREB
+if [ -d ${REVERBWSJBASE} ]; then
+    rm ${REVERBWSJBASE} -fr
+fi
+
+# extract the original feature
 bash scripts/reverbwsjcam0_code_data_testing
 
 DAE_OUT="/home/14/ren/exp/DAE/work/tmp/feature/dae/reverb/iphone/all/"
 
-echo ${FEATURE}
+echo "FEATURE:${FEATURE}"
 if [ "${FEATURE}" == "DAE" ] ; then
     echo "begin the  DAE process "
     cd ./DAE/
