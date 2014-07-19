@@ -83,9 +83,9 @@ export NBPROC=16
 export BASE=/CDShare/Corpus/REVERB/
 export WSJCAM0=${BASE}/wsjcam0 
 
-export BASEWOKR=/home/14/ren/work/data/reverb_task/telephone/
-export BASESOURCE=${BASEWOKR}/source/
-export BASETMP=${BASEWOKR}/tmp/
+export BASEWORK=/home/14/ren/work/data/reverb_task/telephone/
+export BASESOURCE=${BASEWORK}/source/
+export BASETMP=${WORKPATH}/tmp/
 # Location of REVERB_WSJCAM0 database subsets.
 # A) Multi Condition Training Data
 # Please generate the multi condition training data using
@@ -148,8 +148,8 @@ export MCWSJAVRESULTS_MC=$MCWSJAVBASE/results/${taskName}/multi_cond
 
 # The directory where the HMMs can be found.
 export WSJHMM_CUR=W2
-export WSJCAM0HMMS=${WORKPATH}/models/clean_cond/HMM/${taskName}
-export REVERBWSJHMMS=${WORKPATH}/models/multi_cond/HMM/${taskName}
+export WSJCAM0HMMS=${BASETMP}/models/clean_cond/HMM/${taskName}
+export REVERBWSJHMMS=${BASETMP}/models/multi_cond/HMM/${taskName}
 
 #logs file directory 
 export WSJLOGS=${BASETMP}/logs/
@@ -161,7 +161,7 @@ export WSJRES=${BASETMP}/res/
 export WSJLIB=${BASETMP}/lib_${taskName}
 
 # The tools.
-export WSJTOOLS=$WORKPATH/tools
+export WSJTOOLS=$BASEWORK/tools
 
 ########################################################################
 # The following variables don't have to be changed, if

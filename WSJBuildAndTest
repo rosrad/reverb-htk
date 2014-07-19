@@ -53,7 +53,7 @@ mkdir -p ${WSJLOGS}
 #bash scripts/train_models
 
 # Recognize and summarize the results
-bash scripts/prepare_dt_feature.sh
+#bash scripts/prepare_dt_feature.sh
 bash scripts/recognize_and_evaluate
 
 endTime=`date`
