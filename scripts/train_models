@@ -37,7 +37,7 @@ startTime=`date`
 
 # DO NOT CHANGE THIS ORDER
 trainScriptsInOrder=( \
-  #wsjcam0_code_data \
+  wsjcam0_code_data \
   wsj_train_monophones \
   wsj_train_triphones \
 )
@@ -56,7 +56,7 @@ done
 #------------------------------------------------------
 
 trainScriptsForReverbWSJ=(\
-    #reverbwsjcam0_code_data_training\
+    reverbwsjcam0_code_data_training\
     reverbwsjcam0_retrain\	
 )
 for script in ${trainScriptsForReverbWSJ[@]}

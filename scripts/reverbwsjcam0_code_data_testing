@@ -96,7 +96,7 @@ do
 	  -e 's,^,'"${REVERBWSJFEATURES}"',' \
 	  $taskFile	> $featureFileList
       
-      if [ "${extractFeatures}" = "true" ]; then
+      if [[ "${extractFeatures}" = "true" || "${DT_FEATURE}" != "" ]]; then
 	  print_msg "Create directory structure - this may take a while ..." 
 	  sed -e 's,\(.*\)\/.*,\1,' "${featureFileList}" \
 	      | sort -u  \

@@ -35,18 +35,20 @@ startTime=`date`
 # 1. Feature extraction
 #----------------------
 
+
 testScriptsInOrder=( \
-  #reverbwsjcam0_code_data_testing \ 
-  #mcwsjav_code_data \
+    prepare_dt_feature.sh \
+    # reverbwsjcam0_code_data_testing \ 
+    #mcwsjav_code_data \
 )
 
 for script in ${testScriptsInOrder[@]}
 do
-  # execute script and write to log file
-  print_msg "Executing ${script}"
-  date > ${WSJLOGS}/${script}.log
-  bash scripts/${script} 2>&1 | tee -a ${WSJLOGS}/${script}.log
-  date >> ${WSJLOGS}/${script}.log
+    # execute script and write to log file
+    print_msg "Executing ${script}"
+    date > ${WSJLOGS}/${script}.log
+    bash scripts/${script} 2>&1 | tee -a ${WSJLOGS}/${script}.log
+    date >> ${WSJLOGS}/${script}.log
 done
 
 #----------------------------
@@ -54,24 +56,24 @@ done
 #----------------------------
 
 testScriptsInOrder=( \
-  reverbwsjcam0_recognize \
-  reverbwsjcam0_recognize_multicond \
-  reverbwsjcam0_recognize_cmllr_clean \ 
-  reverbwsjcam0_recognize_cmllr_multi \ 
-  #mcwsjav_recognize \
-  #mcwsjav_recognize_multicond \
-  #mcwsjav_recognize_cmllr_clean \
-  #mcwsjav_recognize_cmllr_multi \
-  summarize_results
+    reverbwsjcam0_recognize \
+    reverbwsjcam0_recognize_multicond \
+    reverbwsjcam0_recognize_cmllr_clean \ 
+    reverbwsjcam0_recognize_cmllr_multi \ 
+    #mcwsjav_recognize \
+    #mcwsjav_recognize_multicond \
+    #mcwsjav_recognize_cmllr_clean \
+    #mcwsjav_recognize_cmllr_multi \
+    summarize_results
 )
 
 for script in ${testScriptsInOrder[@]}
 do
-  # execute script and write to log file
-  print_msg "Executing ${script}"
-  date > ${WSJLOGS}/${script}.log
-  bash scripts/${script} 2>&1 | tee -a ${WSJLOGS}/${script}.log
-  date >> ${WSJLOGS}/${script}.log
+    # execute script and write to log file
+    print_msg "Executing ${script}"
+    date > ${WSJLOGS}/${script}.log
+    bash scripts/${script} 2>&1 | tee -a ${WSJLOGS}/${script}.log
+    date >> ${WSJLOGS}/${script}.log
 done
 
 endTime=`date`

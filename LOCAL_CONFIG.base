@@ -33,7 +33,9 @@ export WORKPATH=`pwd`
 # Shall the features be extracted from WSJCAM0/MCWSJAV database
 # for training and testing? 
 # (OPTIONAL)
-export extractFeatures=true
+export extractFeatures=false
+# !!!NOTE: Using both the flags ${DT_FEATURE} and ${extractFeatures} to config the feature extraction
+export DT_FEATURE="DAE"
 
 # Set the task set to use (dt: development or et: evaluation).
 # (OPTIONAL)
@@ -41,8 +43,8 @@ export extractFeatures=true
 #       for the evaluation set is available to you, mcwsjav_prepare_transcriptions
 #       has to be run again!
 export TASKSET="dt" #"et" or "dt et" for evaluation
-export FEATURE="DAE"
-export SUBTASKS=3
+
+export SUBTASKS=1
 
 # Specify the name of the current task to be able to
 # distinguish between configurations later on.
